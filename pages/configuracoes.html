@@ -4,24 +4,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Configurações - Executiva Agronegócios</title>
+  <title>Configuracoes - Executiva Agronegocios</title>
   <link rel="stylesheet" href="../assets/css/style.css">
 </head>
 
 <body id="configuracoes-page">
   <aside class="sidebar">
     <div class="sidebar-header">
-      <div class="login-logo" style="font-size:2.5rem;margin-bottom:8px;">🌾</div>
+      <div class="login-logo" style="font-size:2.5rem;margin-bottom:8px;">EA</div>
       <h2>EXECUTIVA</h2>
-      <small>AGRONEGÓCIOS</small>
+      <small>AGRONEGOCIOS</small>
     </div>
     <nav class="sidebar-nav">
       <a href="dashboard.html"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
-      <a href="motoristas.html"><span class="nav-icon">🧑‍✈️</span><span class="nav-text">Motoristas</span></a>
-      <a href="veiculos.html"><span class="nav-icon">🚚</span><span class="nav-text">Veículos</span></a>
+      <a href="motoristas.html"><span class="nav-icon">👨‍✈️</span><span class="nav-text">Motoristas</span></a>
+      <a href="veiculos.html"><span class="nav-icon">🚚</span><span class="nav-text">Veiculos</span></a>
       <a href="pneus.html"><span class="nav-icon">🛞</span><span class="nav-text">Pneus</span></a>
-      <a href="movimentacao.html"><span class="nav-icon">🔄</span><span class="nav-text">Movimentação</span></a>
-      <a href="relatorios.html"><span class="nav-icon">📈</span><span class="nav-text">Relatórios</span></a>
+      <a href="movimentacao.html"><span class="nav-icon">🔄</span><span class="nav-text">Movimentacao</span></a>
+      <a href="relatorios.html"><span class="nav-icon">📈</span><span class="nav-text">Relatorios</span></a>
     </nav>
     <div class="sidebar-footer">
       <button class="btn-sair" onclick="fazerLogout()">🚪 Sair do Sistema</button>
@@ -30,16 +30,64 @@
 
   <main class="main-content">
     <div class="page-header">
-      <h1>Configurações</h1>
-      <p>Controle de acesso, usuários e permissões do sistema.</p>
+      <h1>Configuracoes</h1>
+      <p>Controle de acesso, usuarios e permissoes do sistema.</p>
     </div>
 
     <div class="settings-grid">
       <section class="card settings-card-wide">
         <div class="card-header">
           <div>
-            <h3>Solicitações de acesso</h3>
-            <p class="card-subtitle">Novos cadastros aguardando liberação do administrador.</p>
+            <h3>Meu acesso</h3>
+            <p class="card-subtitle">Resumo do seu perfil e das permissoes liberadas no sistema.</p>
+          </div>
+        </div>
+        <div class="permission-summary" id="resumoMeuAcesso"></div>
+      </section>
+
+      <section class="card settings-card-wide">
+        <div class="card-header">
+          <div>
+            <h3>Alterar meus dados</h3>
+            <p class="card-subtitle">Atualize seu nome, usuario de login e senha quando precisar.</p>
+          </div>
+        </div>
+        <form class="profile-form" id="formMeuAcesso" onsubmit="event.preventDefault(); salvarMeuAcesso();">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="meuNome">Nome</label>
+              <input type="text" id="meuNome" class="form-control" autocomplete="name" required>
+            </div>
+            <div class="form-group">
+              <label for="meuUsuario">Usuario</label>
+              <input type="text" id="meuUsuario" class="form-control" autocomplete="username" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="minhaSenhaAtual">Senha atual</label>
+              <input type="password" id="minhaSenhaAtual" class="form-control" autocomplete="current-password">
+            </div>
+            <div class="form-group">
+              <label for="minhaNovaSenha">Nova senha</label>
+              <input type="password" id="minhaNovaSenha" class="form-control" autocomplete="new-password" minlength="4">
+            </div>
+            <div class="form-group">
+              <label for="confirmarNovaSenha">Confirmar nova senha</label>
+              <input type="password" id="confirmarNovaSenha" class="form-control" autocomplete="new-password" minlength="4">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="btnSalvarMeuAcesso">Salvar meus dados</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card settings-card-wide admin-settings-only">
+        <div class="card-header">
+          <div>
+            <h3>Solicitacoes de acesso</h3>
+            <p class="card-subtitle">Novos cadastros aguardando liberacao do administrador.</p>
           </div>
           <span class="ops-count" id="totalSolicitacoesPendentes">0</span>
         </div>
@@ -47,11 +95,11 @@
           <table>
             <thead>
               <tr>
-                <th>Usuário</th>
+                <th>Usuario</th>
                 <th>Perfil</th>
                 <th>Solicitado em</th>
                 <th>Status</th>
-                <th>Ações</th>
+                <th>Acoes</th>
               </tr>
             </thead>
             <tbody id="tabelaSolicitacoesAcesso"></tbody>
@@ -59,22 +107,23 @@
         </div>
       </section>
 
-      <section class="card settings-card-wide">
+      <section class="card settings-card-wide admin-settings-only">
         <div class="card-header">
           <div>
-            <h3>Usuários aprovados</h3>
-            <p class="card-subtitle">Somente o administrador pode ativar ou bloquear acessos.</p>
+            <h3>Usuarios aprovados</h3>
+            <p class="card-subtitle">Defina quem pode cadastrar dados e quem pode consultar relatorios.</p>
           </div>
         </div>
         <div class="table-container">
           <table>
             <thead>
               <tr>
-                <th>Usuário</th>
+                <th>Usuario</th>
                 <th>Perfil</th>
+                <th>Permissoes</th>
                 <th>Aprovado em</th>
                 <th>Status</th>
-                <th>Ações</th>
+                <th>Acoes</th>
               </tr>
             </thead>
             <tbody id="tabelaUsuariosAcesso"></tbody>

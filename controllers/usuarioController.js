@@ -35,8 +35,20 @@ function usuarioPublico(row) {
     aprovadoEm: row.aprovado_em,
     aprovadoPor: row.aprovado_por,
     recusadoEm: row.recusado_em,
-    ultimoLogin: row.ultimo_login
+    ultimoLogin: row.ultimo_login,
+    podeCadastrar: row.pode_cadastrar !== false,
+    podeRelatorios: row.pode_relatorios !== false
   };
+}
+
+function usuarioEhAdmin(usuario) {
+  return ['admin', 'administrador'].includes(String(usuario?.perfil || '').toLowerCase());
+}
+
+function permissaoPadrao(perfil, permissao) {
+  const perfilNormalizado = normalizarPerfil(perfil);
+  if (perfilNormalizado === 'motorista') return false;
+  return ['cadastro', 'relatorios'].includes(permissao);
 }
 
 function validarCadastro({ nome, usuario, senha }) {
@@ -65,6 +77,8 @@ async function garantirTabelaUsuarios() {
         aprovado_em TIMESTAMP,
         recusado_em TIMESTAMP,
         ultimo_login TIMESTAMP,
+        pode_cadastrar BOOLEAN NOT NULL DEFAULT TRUE,
+        pode_relatorios BOOLEAN NOT NULL DEFAULT TRUE,
         criado_em TIMESTAMP NOT NULL DEFAULT NOW(),
         atualizado_em TIMESTAMP NOT NULL DEFAULT NOW(),
         CONSTRAINT chk_perfil_gestao_pneu
@@ -81,6 +95,12 @@ async function garantirTabelaUsuarios() {
 
       CREATE INDEX IF NOT EXISTS idx_gestao_de_pneu_usuario_status
       ON gestao_de_pneu (usuario, status);
+
+      ALTER TABLE gestao_de_pneu
+      ADD COLUMN IF NOT EXISTS pode_cadastrar BOOLEAN NOT NULL DEFAULT TRUE;
+
+      ALTER TABLE gestao_de_pneu
+      ADD COLUMN IF NOT EXISTS pode_relatorios BOOLEAN NOT NULL DEFAULT TRUE;
     `);
   }
 
@@ -118,17 +138,19 @@ async function cadastrar(req, res) {
     const perfil = primeiroAdmin ? 'admin' : (perfilSolicitado === 'admin' ? 'operacional' : perfilSolicitado);
     const status = primeiroAdmin ? 'aprovado' : 'pendente';
     const senhaHash = hashPassword(senha);
+    const podeCadastrar = primeiroAdmin || permissaoPadrao(perfil, 'cadastro');
+    const podeRelatorios = primeiroAdmin || permissaoPadrao(perfil, 'relatorios');
 
     const insert = await db.query(`
       INSERT INTO gestao_de_pneu (
-        nome, usuario, senha_hash, perfil, status, aprovado_em, atualizado_em
+        nome, usuario, senha_hash, perfil, status, pode_cadastrar, pode_relatorios, aprovado_em, atualizado_em
       ) VALUES (
-        $1, $2, $3, $4, $5::varchar,
+        $1, $2, $3, $4, $5::varchar, $6, $7,
         CASE WHEN $5::varchar = 'aprovado' THEN NOW() ELSE NULL END,
         NOW()
       )
-      RETURNING id, nome, usuario, perfil, status, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
-    `, [nome, usuario, senhaHash, perfil, status]);
+      RETURNING id, nome, usuario, perfil, status, pode_cadastrar, pode_relatorios, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
+    `, [nome, usuario, senhaHash, perfil, status, podeCadastrar, podeRelatorios]);
 
     const usuarioCriado = usuarioPublico(insert.rows[0]);
     if (primeiroAdmin) {
@@ -189,7 +211,7 @@ async function login(req, res) {
       UPDATE gestao_de_pneu
       SET ultimo_login = NOW(), atualizado_em = NOW()
       WHERE id = $1
-      RETURNING id, nome, usuario, perfil, status, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
+      RETURNING id, nome, usuario, perfil, status, pode_cadastrar, pode_relatorios, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
     `, [encontrado.id]);
 
     const usuarioLogado = usuarioPublico(update.rows[0]);
@@ -207,6 +229,16 @@ async function listarUsuarios(req, res) {
   try {
     await garantirTabelaUsuarios();
 
+    if (!usuarioEhAdmin(req.usuario)) {
+      const result = await db.query(`
+        SELECT id, nome, usuario, perfil, status, pode_cadastrar, pode_relatorios, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
+        FROM gestao_de_pneu
+        WHERE id = $1
+        LIMIT 1
+      `, [req.usuario.id]);
+      return res.json(result.rows.map(usuarioPublico));
+    }
+
     const statusQuery = String(req.query.status || '')
       .split(',')
       .map(normalizarStatus)
@@ -220,7 +252,7 @@ async function listarUsuarios(req, res) {
     }
 
     const result = await db.query(`
-      SELECT id, nome, usuario, perfil, status, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
+      SELECT id, nome, usuario, perfil, status, pode_cadastrar, pode_relatorios, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
       FROM gestao_de_pneu
       ${where}
       ORDER BY
@@ -232,6 +264,66 @@ async function listarUsuarios(req, res) {
   } catch (error) {
     console.error('Erro ao listar usuarios:', error);
     return res.status(500).json({ error: 'Erro interno ao listar usuarios.' });
+  }
+}
+
+async function atualizarMeuAcesso(req, res) {
+  try {
+    await garantirTabelaUsuarios();
+
+    const id = Number(req.usuario.id);
+    const nome = String(req.body.nome || '').trim();
+    const usuario = normalizarUsuario(req.body.usuario);
+    const senhaAtual = String(req.body.senhaAtual || '');
+    const novaSenha = String(req.body.novaSenha || '');
+
+    if (!id) return res.status(400).json({ error: 'Sessao invalida. Faca login novamente.' });
+    if (!nome || !usuario) return res.status(400).json({ error: 'Informe nome e usuario.' });
+    if (!/^[a-z0-9._-]{3,60}$/.test(usuario)) {
+      return res.status(400).json({ error: 'Usuario deve ter 3 a 60 caracteres e usar apenas letras, numeros, ponto, traco ou underline.' });
+    }
+    if (novaSenha && novaSenha.length < 4) {
+      return res.status(400).json({ error: 'Use uma nova senha com pelo menos 4 caracteres.' });
+    }
+
+    const atual = await db.query('SELECT * FROM gestao_de_pneu WHERE id = $1 LIMIT 1', [id]);
+    const encontrado = atual.rows[0];
+    if (!encontrado) return res.status(404).json({ error: 'Usuario nao encontrado.' });
+
+    if (novaSenha && !verifyPassword(senhaAtual, encontrado.senha_hash)) {
+      return res.status(401).json({ error: 'Senha atual incorreta.' });
+    }
+
+    const params = novaSenha
+      ? [nome, usuario, hashPassword(novaSenha), id]
+      : [nome, usuario, id];
+    const sql = novaSenha
+      ? `
+        UPDATE gestao_de_pneu
+        SET nome = $1, usuario = $2, senha_hash = $3, atualizado_em = NOW()
+        WHERE id = $4
+        RETURNING id, nome, usuario, perfil, status, pode_cadastrar, pode_relatorios, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
+      `
+      : `
+        UPDATE gestao_de_pneu
+        SET nome = $1, usuario = $2, atualizado_em = NOW()
+        WHERE id = $3
+        RETURNING id, nome, usuario, perfil, status, pode_cadastrar, pode_relatorios, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
+      `;
+
+    const update = await db.query(sql, params);
+    const usuarioAtualizado = usuarioPublico(update.rows[0]);
+
+    return res.json({
+      usuario: usuarioAtualizado,
+      token: signToken(usuarioAtualizado)
+    });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Esse usuario ja existe.' });
+    }
+    console.error('Erro ao atualizar proprio acesso:', error);
+    return res.status(500).json({ error: 'Erro interno ao atualizar seu acesso.' });
   }
 }
 
@@ -267,7 +359,7 @@ async function atualizarStatusUsuario(req, res) {
         recusado_em = CASE WHEN $1::varchar = 'recusado' THEN NOW() ELSE NULL END,
         atualizado_em = NOW()
       WHERE id = $3
-      RETURNING id, nome, usuario, perfil, status, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
+      RETURNING id, nome, usuario, perfil, status, pode_cadastrar, pode_relatorios, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
     `, [status, req.usuario.id, id]);
 
     return res.json(usuarioPublico(update.rows[0]));
@@ -291,10 +383,10 @@ async function criarUsuarioDireto(req, res) {
 
     const insert = await db.query(`
       INSERT INTO gestao_de_pneu (
-        nome, usuario, senha_hash, perfil, status, aprovado_por, aprovado_em, atualizado_em
-      ) VALUES ($1, $2, $3, $4, 'aprovado', $5, NOW(), NOW())
-      RETURNING id, nome, usuario, perfil, status, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
-    `, [nome, usuario, hashPassword(senha), perfil, req.usuario.id]);
+        nome, usuario, senha_hash, perfil, status, pode_cadastrar, pode_relatorios, aprovado_por, aprovado_em, atualizado_em
+      ) VALUES ($1, $2, $3, $4, 'aprovado', $5, $6, $7, NOW(), NOW())
+      RETURNING id, nome, usuario, perfil, status, pode_cadastrar, pode_relatorios, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
+    `, [nome, usuario, hashPassword(senha), perfil, permissaoPadrao(perfil, 'cadastro'), permissaoPadrao(perfil, 'relatorios'), req.usuario.id]);
 
     return res.status(201).json(usuarioPublico(insert.rows[0]));
   } catch (error) {
@@ -325,7 +417,7 @@ async function atualizarUsuario(req, res) {
       UPDATE gestao_de_pneu
       SET nome = $1, usuario = $2, perfil = $3, status = $4, atualizado_em = NOW()
       WHERE id = $5
-      RETURNING id, nome, usuario, perfil, status, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
+      RETURNING id, nome, usuario, perfil, status, pode_cadastrar, pode_relatorios, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
     `, [nome, usuario, perfil, status, id]);
 
     if (!update.rows.length) return res.status(404).json({ error: 'Usuario nao encontrado.' });
@@ -351,7 +443,7 @@ async function alterarSenha(req, res) {
       UPDATE gestao_de_pneu
       SET senha_hash = $1, atualizado_em = NOW()
       WHERE id = $2
-      RETURNING id, nome, usuario, perfil, status, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
+      RETURNING id, nome, usuario, perfil, status, pode_cadastrar, pode_relatorios, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
     `, [hashPassword(senha), id]);
 
     if (!update.rows.length) return res.status(404).json({ error: 'Usuario nao encontrado.' });
@@ -359,6 +451,31 @@ async function alterarSenha(req, res) {
   } catch (error) {
     console.error('Erro ao alterar senha:', error);
     return res.status(500).json({ error: 'Erro interno ao alterar senha.' });
+  }
+}
+
+async function atualizarPermissoes(req, res) {
+  try {
+    await garantirTabelaUsuarios();
+
+    const id = Number(req.params.id);
+    const podeCadastrar = Boolean(req.body.podeCadastrar);
+    const podeRelatorios = Boolean(req.body.podeRelatorios);
+
+    if (!id) return res.status(400).json({ error: 'Usuario invalido.' });
+
+    const update = await db.query(`
+      UPDATE gestao_de_pneu
+      SET pode_cadastrar = $1, pode_relatorios = $2, atualizado_em = NOW()
+      WHERE id = $3
+      RETURNING id, nome, usuario, perfil, status, pode_cadastrar, pode_relatorios, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
+    `, [podeCadastrar, podeRelatorios, id]);
+
+    if (!update.rows.length) return res.status(404).json({ error: 'Usuario nao encontrado.' });
+    return res.json(usuarioPublico(update.rows[0]));
+  } catch (error) {
+    console.error('Erro ao atualizar permissoes:', error);
+    return res.status(500).json({ error: 'Erro interno ao atualizar permissoes.' });
   }
 }
 
@@ -386,9 +503,11 @@ module.exports = {
   cadastrar,
   login,
   listarUsuarios,
+  atualizarMeuAcesso,
   atualizarStatusUsuario,
   criarUsuarioDireto,
   atualizarUsuario,
+  atualizarPermissoes,
   alterarSenha,
   excluirUsuario
 };

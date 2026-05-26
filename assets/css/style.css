@@ -1808,6 +1808,29 @@ body {
   min-width: 0;
 }
 
+.profile-form {
+  display: grid;
+  gap: 16px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.profile-form .form-row:nth-of-type(2) {
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+}
+
+.profile-form .form-actions {
+  justify-content: flex-start;
+}
+
+.profile-form .btn {
+  min-width: 180px;
+}
+
 .movement-query-card {
   margin-top: 22px;
 }
@@ -1911,6 +1934,75 @@ body {
   padding: 7px 12px;
   border-radius: 8px;
   font-size: 0.78rem;
+}
+
+.permission-summary {
+  padding-top: 6px;
+}
+
+.permission-profile {
+  display: grid;
+  grid-template-columns: minmax(160px, .8fr) minmax(140px, .6fr) minmax(260px, 1.4fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.permission-profile>div {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--cinza-200);
+  border-radius: 8px;
+  background: var(--cinza-50);
+}
+
+.permission-profile strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--cinza-900);
+  font-size: 1rem;
+  text-transform: uppercase;
+}
+
+.permission-pills,
+.permission-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.permission-pill,
+.permission-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.permission-pill.allowed,
+.permission-toggle.allowed {
+  background: #dcfce7;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.permission-pill.blocked,
+.permission-toggle.blocked {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.permission-toggle {
+  cursor: pointer;
+}
+
+.permission-toggle:hover {
+  filter: brightness(.97);
 }
 
 .report-filter-card {
@@ -2376,6 +2468,15 @@ tbody tr:hover {
   }
 
   .movement-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row,
+  .profile-form .form-row:nth-of-type(2) {
+    grid-template-columns: 1fr;
+  }
+
+  .permission-profile {
     grid-template-columns: 1fr;
   }
 

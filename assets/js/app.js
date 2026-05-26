@@ -420,6 +420,18 @@ function obterUsuarioLogado() {
   return null;
 }
 
+function salvarSessaoUsuario(usuario, token = null) {
+  const atual = obterUsuarioLogado() || {};
+  const novaSessao = {
+    ...atual,
+    ...usuario,
+    token: token || usuario?.token || atual.token
+  };
+  sessionStorage.setItem(KEYS.USER, JSON.stringify(novaSessao));
+  if (novaSessao.token) sessionStorage.setItem('authToken', novaSessao.token);
+  return novaSessao;
+}
+
 function exigirLogin() {
   const usuario = obterUsuarioLogado();
   if (!usuario) {
@@ -434,12 +446,15 @@ function atualizarUsuarioNaInterface(usuario) {
   if (!usuario) return;
   prepararMenuAdministrativo(usuario);
   document.querySelectorAll('.sidebar-footer').forEach(footer => {
-    if (footer.querySelector('.sidebar-user')) return;
-    const info = document.createElement('div');
+    let info = footer.querySelector('.sidebar-user');
+    if (!info) {
+      info = document.createElement('div');
+      info.className = 'sidebar-user';
+      footer.prepend(info);
+    }
     info.className = 'sidebar-user';
     const perfil = usuarioEhAdmin(usuario) ? 'Administrador' : usuario.perfil === 'motorista' ? 'Motorista' : 'Operacional';
     info.innerHTML = `<span>${perfil}</span><strong>${usuario.nome || usuario.usuario}</strong>`;
-    footer.prepend(info);
   });
 }
 
@@ -458,14 +473,38 @@ function usuarioEhAdmin(usuario) {
   return ['admin', 'administrador'].includes(String(usuario?.perfil || '').toLowerCase());
 }
 
+function usuarioPodeCadastrar(usuario) {
+  if (usuarioEhAdmin(usuario)) return true;
+  return usuario?.podeCadastrar !== false;
+}
+
+function usuarioPodeRelatorios(usuario) {
+  if (usuarioEhAdmin(usuario)) return true;
+  return usuario?.podeRelatorios !== false;
+}
+
 function exigirPerfil(usuario) {
   if (!usuario) return false;
   const perfil = usuario.perfil || 'admin';
+  if (document.body.id === 'configuracoes-page') return true;
   if (paginaAtualEhMotorista()) return true;
   if (perfil === 'motorista') {
     window.location.href = 'motorista-app.html';
     return false;
   }
+
+  if (document.body.id === 'relatorios-page' && !usuarioPodeRelatorios(usuario)) {
+    notificar('Seu acesso nao permite consultar relatorios.', 'error');
+    window.location.href = 'dashboard.html';
+    return false;
+  }
+
+  if (['motoristas-page', 'veiculos-page', 'pneus-page'].includes(document.body.id) && !usuarioPodeCadastrar(usuario)) {
+    notificar('Seu acesso nao permite fazer cadastros.', 'error');
+    window.location.href = 'dashboard.html';
+    return false;
+  }
+
   return true;
 }
 
@@ -482,8 +521,16 @@ function prepararMenuAdministrativo(usuario) {
     nav.appendChild(linkConfig);
   }
 
-  linkConfig.style.display = usuarioEhAdmin(usuario) ? '' : 'none';
+  linkConfig.style.display = '';
   linkConfig.classList.toggle('active', document.body.id === 'configuracoes-page');
+
+  ['motoristas.html', 'veiculos.html', 'pneus.html'].forEach(href => {
+    const link = nav.querySelector(`a[href="${href}"]`);
+    if (link) link.style.display = usuarioPodeCadastrar(usuario) ? '' : 'none';
+  });
+
+  const linkRelatorios = nav.querySelector('a[href="relatorios.html"]');
+  if (linkRelatorios) linkRelatorios.style.display = usuarioPodeRelatorios(usuario) ? '' : 'none';
 }
 
 /* === USUARIOS DO SISTEMA === */
@@ -575,7 +622,7 @@ async function renderUsuariosSistema() {
   const tbody = $('corpoTabelaUsuarios');
   if (!tbody) return;
 
-  tbody.innerHTML = '<tr><td colspan="5" class="text-center">Carregando usuarios...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6" class="text-center">Carregando usuarios...</td></tr>';
   try {
     const busca = (getVal('buscaUsuarioSistema') || '').toLowerCase();
     const usuarios = await listarUsuariosSistema();
@@ -2260,14 +2307,19 @@ function perfilLabelSistema(perfil) {
 }
 
 function initConfiguracoes(usuario) {
-  if (!usuarioEhAdmin(usuario)) {
-    notificar('Somente administrador pode acessar configuracoes.', 'error');
-    setTimeout(() => { window.location.href = 'dashboard.html'; }, 900);
-    return;
-  }
+  renderMeuAcesso(usuario);
+  document.querySelectorAll('.admin-settings-only').forEach(secao => {
+    secao.style.display = usuarioEhAdmin(usuario) ? '' : 'none';
+  });
 
-  renderSolicitacoesAcesso();
-  renderUsuariosAcesso(usuario);
+  if (usuarioEhAdmin(usuario)) {
+    renderSolicitacoesAcesso();
+    renderUsuariosAcesso(usuario);
+  } else {
+    listarUsuariosAcesso()
+      .then(usuarios => renderMeuAcesso(usuarios[0] || usuario))
+      .catch(() => renderMeuAcesso(usuario));
+  }
 }
 
 async function listarUsuariosAcesso(status = '') {
@@ -2281,6 +2333,101 @@ async function atualizarStatusAcesso(id, status) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status })
   });
+}
+
+async function atualizarPermissoesAcesso(id, podeCadastrar, podeRelatorios) {
+  return await apiUsuarios(`/${encodeURIComponent(id)}/permissoes`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ podeCadastrar, podeRelatorios })
+  });
+}
+
+async function atualizarMeuAcessoApi(payload) {
+  return await apiUsuarios('/me', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+}
+
+function permissaoLabel(valor, texto) {
+  return `<span class="permission-pill ${valor ? 'allowed' : 'blocked'}">${texto}: ${valor ? 'Liberado' : 'Bloqueado'}</span>`;
+}
+
+function renderMeuAcesso(usuario) {
+  const box = $('resumoMeuAcesso');
+  preencherFormularioMeuAcesso(usuario);
+  if (!box) return;
+
+  box.innerHTML = `
+    <div class="permission-profile">
+      <div>
+        <span class="cell-sub">Usuario</span>
+        <strong>${escapeHtml(usuario.nome || usuario.usuario || '-')}</strong>
+      </div>
+      <div>
+        <span class="cell-sub">Perfil</span>
+        <strong>${escapeHtml(perfilLabelSistema(usuario.perfil))}</strong>
+      </div>
+      <div>
+        <span class="cell-sub">Permissoes</span>
+        <div class="permission-pills">
+          ${permissaoLabel(usuarioPodeCadastrar(usuario), 'Cadastros')}
+          ${permissaoLabel(usuarioPodeRelatorios(usuario), 'Relatorios')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function preencherFormularioMeuAcesso(usuario) {
+  if (!usuario) return;
+  setVal('meuNome', usuario.nome || '');
+  setVal('meuUsuario', usuario.usuario || '');
+}
+
+async function salvarMeuAcesso() {
+  const nome = getVal('meuNome');
+  const usuario = getVal('meuUsuario').toLowerCase();
+  const senhaAtual = getVal('minhaSenhaAtual');
+  const novaSenha = getVal('minhaNovaSenha');
+  const confirmarSenha = getVal('confirmarNovaSenha');
+  const botao = $('btnSalvarMeuAcesso');
+
+  if (!nome || !usuario) {
+    notificar('Informe nome e usuario.', 'error');
+    return;
+  }
+
+  if (novaSenha || confirmarSenha) {
+    if (!senhaAtual) {
+      notificar('Informe a senha atual para trocar a senha.', 'error');
+      return;
+    }
+    if (novaSenha.length < 4) {
+      notificar('A nova senha precisa ter pelo menos 4 caracteres.', 'error');
+      return;
+    }
+    if (novaSenha !== confirmarSenha) {
+      notificar('A confirmacao da nova senha nao confere.', 'error');
+      return;
+    }
+  }
+
+  if (!setBotaoCarregando(botao, true, 'Salvando...')) return;
+  try {
+    const data = await atualizarMeuAcessoApi({ nome, usuario, senhaAtual, novaSenha });
+    const usuarioAtualizado = salvarSessaoUsuario(data.usuario, data.token);
+    atualizarUsuarioNaInterface(usuarioAtualizado);
+    renderMeuAcesso(usuarioAtualizado);
+    ['minhaSenhaAtual', 'minhaNovaSenha', 'confirmarNovaSenha'].forEach(id => setVal(id));
+    notificar('Seus dados foram atualizados.', 'success');
+  } catch (error) {
+    notificar(error.message, 'error');
+  } finally {
+    setBotaoCarregando(botao, false);
+  }
 }
 
 async function renderSolicitacoesAcesso() {
@@ -2334,17 +2481,25 @@ async function renderUsuariosAcesso(usuarioLogado = obterUsuarioLogado()) {
 
     tbody.innerHTML = '';
     if (!usuarios.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhum usuario aprovado.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center">Nenhum usuario aprovado.</td></tr>';
       return;
     }
 
     usuarios.forEach(u => {
       const ativo = (u.status || 'aprovado') === 'aprovado' && u.ativo !== false;
       const isAtual = normalizarChave(u.usuario) === normalizarChave(usuarioLogado?.usuario);
+      const podeCadastrar = u.podeCadastrar !== false;
+      const podeRelatorios = u.podeRelatorios !== false;
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><strong>${escapeHtml(u.nome || '-')}</strong><small class="cell-sub">${escapeHtml(u.usuario || '-')}</small></td>
         <td><span class="badge badge-info">${escapeHtml(perfilLabelSistema(u.perfil))}</span></td>
+        <td>
+          <div class="permission-actions">
+            <button class="permission-toggle ${podeCadastrar ? 'allowed' : 'blocked'}" onclick="alternarPermissaoUsuarioAcesso(${Number(u.id)}, ${!podeCadastrar}, ${podeRelatorios})">Cadastros</button>
+            <button class="permission-toggle ${podeRelatorios ? 'allowed' : 'blocked'}" onclick="alternarPermissaoUsuarioAcesso(${Number(u.id)}, ${podeCadastrar}, ${!podeRelatorios})">Relatorios</button>
+          </div>
+        </td>
         <td>${formatarDataDashboard(u.aprovadoEm || u.criadoEm)}</td>
         <td><span class="badge ${ativo ? 'badge-success' : 'badge-danger'}">${ativo ? 'Ativo' : 'Bloqueado'}</span></td>
         <td class="table-actions">
@@ -2354,7 +2509,7 @@ async function renderUsuariosAcesso(usuarioLogado = obterUsuarioLogado()) {
       tbody.appendChild(tr);
     });
   } catch (error) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center">${escapeHtml(error.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center">${escapeHtml(error.message)}</td></tr>`;
   }
 }
 
@@ -2384,6 +2539,16 @@ async function alternarStatusUsuarioAcesso(id, statusAtual) {
     const novoStatus = statusAtual === 'aprovado' ? 'bloqueado' : 'aprovado';
     await atualizarStatusAcesso(id, novoStatus);
     notificar(novoStatus === 'aprovado' ? 'Usuario ativado.' : 'Usuario bloqueado.', 'success');
+    await renderUsuariosAcesso();
+  } catch (error) {
+    notificar(error.message, 'error');
+  }
+}
+
+async function alternarPermissaoUsuarioAcesso(id, podeCadastrar, podeRelatorios) {
+  try {
+    await atualizarPermissoesAcesso(id, podeCadastrar, podeRelatorios);
+    notificar('Permissoes atualizadas.', 'success');
     await renderUsuariosAcesso();
   } catch (error) {
     notificar(error.message, 'error');
