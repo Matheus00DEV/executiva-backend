@@ -123,8 +123,8 @@ async function cadastrar(req, res) {
       INSERT INTO gestao_de_pneu (
         nome, usuario, senha_hash, perfil, status, aprovado_em, atualizado_em
       ) VALUES (
-        $1, $2, $3, $4, $5,
-        CASE WHEN $5 = 'aprovado' THEN NOW() ELSE NULL END,
+        $1, $2, $3, $4, $5::varchar,
+        CASE WHEN $5::varchar = 'aprovado' THEN NOW() ELSE NULL END,
         NOW()
       )
       RETURNING id, nome, usuario, perfil, status, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
@@ -261,7 +261,6 @@ async function atualizarStatusUsuario(req, res) {
     const update = await db.query(`
       UPDATE gestao_de_pneu
       SET
-        status = $1,
         status = $1::varchar,
         aprovado_por = CASE WHEN $1::varchar = 'aprovado' THEN $2 ELSE aprovado_por END,
         aprovado_em = CASE WHEN $1::varchar = 'aprovado' THEN NOW() ELSE aprovado_em END,
@@ -293,8 +292,7 @@ async function criarUsuarioDireto(req, res) {
     const insert = await db.query(`
       INSERT INTO gestao_de_pneu (
         nome, usuario, senha_hash, perfil, status, aprovado_por, aprovado_em, atualizado_em
-      ) VALUES $1, $2, $3, $4, $5::varchar,
-        CASE WHEN $5::varchar = 'aprovado' THEN NOW() ELSE NULL END,
+      ) VALUES ($1, $2, $3, $4, 'aprovado', $5, NOW(), NOW())
       RETURNING id, nome, usuario, perfil, status, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
     `, [nome, usuario, hashPassword(senha), perfil, req.usuario.id]);
 

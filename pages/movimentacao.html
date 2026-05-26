@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movimentação - Executiva Agronegócios</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+
+<body id="movimentacao-page">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div style="font-size:2.5rem;margin-bottom:8px;">🌾</div>
+      <h2>EXECUTIVA</h2><small>AGRONEGÓCIOS</small>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
+      <a href="motoristas.html"><span class="nav-icon">🧑‍✈️</span><span class="nav-text">Motoristas</span></a>
+      <a href="veiculos.html"><span class="nav-icon">🚚</span><span class="nav-text">Veículos</span></a>
+      <a href="pneus.html"><span class="nav-icon">🛞</span><span class="nav-text">Pneus</span></a>
+      <a href="movimentacao.html" class="active"><span class="nav-icon">🔄</span><span
+          class="nav-text">Movimentação</span></a>
+      <a href="relatorios.html"><span class="nav-icon">📈</span><span class="nav-text">Relatórios</span></a>
+    </nav>
+    <div class="sidebar-footer"><button class="btn-sair" onclick="fazerLogout()">🚪 Sair</button></div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Movimentação de Pneus</h1>
+      <p>Registre instalações, retiradas, recapagens, atualizações e baixas.</p>
+    </div>
+
+    <div class="split-workspace">
+      <!-- FORMULÁRIO -->
+      <div class="card">
+        <div class="card-header">
+          <h3>📝 Registrar Movimentação</h3>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label>Nº Fogo do Pneu *</label><input type="text" id="numeroPneu" class="form-control" placeholder="Nº do pneu"></div>
+          <div class="form-group"><label>Data *</label><input type="date" id="dataMov" class="form-control"></div>
+          <div class="form-group"><label>Tipo de Movimento *</label>
+            <select id="tipoMov" class="form-control" onchange="toggleMovFields()">
+              <option value="">Selecione...</option>
+              <option value="Instalacao">Instalação</option>
+              <option value="Retirada">Retirada</option>
+              <option value="Recapagem">Recapagem / Conserto</option>
+              <option value="Atualizacao">Atualização</option>
+              <option value="Baixa">Baixa / Sucata</option>
+            </select>
+          </div>
+          
+          <div class="form-group veiculo-origem-group"><label>Veículo Anterior</label><input type="text" id="veiculoAnterior" class="form-control" value="Estoque" readonly></div>
+          <div class="form-group veiculo-origem-group"><label>Local Anterior</label><input type="text" id="localAnterior" class="form-control" value="Estoque" readonly></div>
+          
+          <div class="form-group veiculo-destino-group"><label>Tipo Veículo</label>
+            <select id="tipoVeiculo" class="form-control">
+              <option value="">Selecione</option>
+              <option value="Cavalo">Cavalo</option>
+              <option value="Carreta">Carreta</option>
+              <option value="Reboque">Reboque</option>
+            </select>
+          </div>
+          <div class="form-group veiculo-destino-group"><label>Veículo Destino / Atual</label>
+            <select id="veiculoAtual" class="form-control select-veiculos"></select>
+          </div>
+          <div class="form-group veiculo-destino-group"><label>Eixo</label>
+            <select id="eixo" class="form-control" onchange="toggleStepField()">
+              <option value="">Selecione</option>
+              <option value="1º EIXO">1º EIXO</option>
+              <option value="2º EIXO">2º EIXO</option>
+              <option value="3º EIXO">3º EIXO</option>
+              <option value="4º EIXO">4º EIXO</option>
+              <option value="5º EIXO">5º EIXO</option>
+              <option value="6º EIXO">6º EIXO</option>
+              <option value="7º EIXO">7º EIXO</option>
+              <option value="8º EIXO">8º EIXO</option>
+              <option value="9º EIXO">9º EIXO</option>
+              <option value="STEP">STEP</option>
+            </select>
+          </div>
+          <div class="form-group" id="stepNumeroGroup" style="display:none;">
+            <label>Qual Step</label>
+            <select id="stepNumero" class="form-control">
+              <option value="">Selecione</option>
+              <option value="1º Step">1º Step</option>
+              <option value="2º Step">2º Step</option>
+            </select>
+          </div>
+          <div class="form-group veiculo-destino-group"><label>Lado</label>
+            <select id="lado" class="form-control" onchange="atualizarLocal()">
+              <option value="">Selecione</option>
+              <option value="LD">LD (Lado Direito)</option>
+              <option value="LE">LE (Lado Esquerdo)</option>
+              <option value="LDD">LDD (Lado Direito Dentro)</option>
+              <option value="LDF">LDF (Lado Direito Flutuante)</option>
+              <option value="LED">LED (Lado Esquerdo Duplo)</option>
+              <option value="LEF">LEF (Lado Esquerdo Flutuante)</option>
+            </select>
+          </div>
+          <div class="form-group veiculo-destino-group"><label>Local Atual</label><input type="text" id="localAtual" class="form-control" readonly></div>
+          
+          <div class="form-group km-group" style="display:none;"><label>KM do Veículo *</label><input type="number" id="kmVeiculo" class="form-control" placeholder="KM atual do painel"></div>
+          
+          <div class="form-group" style="grid-column:span 2;"><label>Observação</label><textarea id="observacao" class="form-control" rows="2"></textarea></div>
+        </div>
+        
+        <div id="secaoRecape" style="display:none;border-top:1px solid #e2e8f0;margin-top:16px;padding-top:16px;">
+          <h3 style="font-size:0.95rem;margin-bottom:12px;color:#64748b;">Dados de Recapagem / Conserto</h3>
+          <div class="form-grid">
+            <div class="form-group"><label>Serviço</label>
+               <select id="tipoServicoRecape" class="form-control">
+                  <option value="Recapagem">Recapagem</option>
+                  <option value="Conserto">Conserto</option>
+               </select>
+            </div>
+            <div class="form-group"><label>Fornecedor</label><input type="text" id="fornecedorRecape" class="form-control"></div>
+            <div class="form-group"><label>Valor (R$)</label><input type="number" id="valorRecape" class="form-control" step="0.01"></div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" onclick="location.reload()">🔄 Limpar</button>
+          <button id="btnSalvarMov" class="btn btn-primary">💾 Salvar Movimentação</button>
+        </div>
+        
+        <script>
+           function toggleMovFields() {
+             const t = document.getElementById('tipoMov').value;
+             const isInstal = t === 'Instalacao';
+             const isRetir = t === 'Retirada';
+             const isRecap = t === 'Recapagem';
+             const isBaixa = t === 'Baixa';
+             
+             // Mostrar KM quando a movimentação impacta controle de quilometragem
+             document.querySelectorAll('.km-group').forEach(el => el.style.display = (isInstal || isRetir || isBaixa || t === 'Atualizacao') ? 'block' : 'none');
+             
+             // Mostrar recapagem
+             document.getElementById('secaoRecape').style.display = isRecap ? 'block' : 'none';
+             
+             // Se for retirada/baixa, ele vai para o estoque/sucata, não precisa de destino
+             const isDestinoNecessario = isInstal || t === 'Atualizacao';
+             document.querySelectorAll('.veiculo-destino-group').forEach(el => {
+                if(el.id !== 'stepNumeroGroup') el.style.display = isDestinoNecessario ? 'block' : 'none';
+             });
+             
+             if(isRetir || isBaixa) {
+                document.getElementById('localAtual').value = isBaixa ? '-' : 'Estoque';
+                document.getElementById('veiculoAtual').value = '';
+             }
+           }
+        </script>
+      </div>
+
+      <!-- LISTA DE PNEUS -->
+      <div class="card">
+        <div class="card-header">
+          <h3>🛞 Selecionar Pneu</h3>
+        </div>
+        <div class="filtros-row"><input type="text" id="buscaPneuMov" class="form-control"
+            placeholder="🔍 Buscar pneu..."></div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Nº Pneu</th>
+                <th>Marca</th>
+                <th>Status</th>
+                <th>Veículo</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tabelaPneusMov"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <section class="card movement-query-card">
+      <div class="card-header">
+        <div>
+          <h3>Consulta de Movimentações</h3>
+          <p class="card-subtitle">Filtre por pneu, veículo, local, período ou tipo para conferir e editar lançamentos já feitos.</p>
+        </div>
+      </div>
+
+      <div class="movement-filter-grid">
+        <div class="filter-group">
+          <span>Situação</span>
+          <label><input type="radio" name="filtroMovSituacao" value="" checked> Todos</label>
+          <label><input type="radio" name="filtroMovSituacao" value="Confirmado"> Confirmados</label>
+        </div>
+        <div class="filter-group">
+          <span>Período</span>
+          <input type="date" id="filtroMovDataInicial" class="form-control" aria-label="Data inicial">
+          <input type="date" id="filtroMovDataFinal" class="form-control" aria-label="Data final">
+        </div>
+        <div class="filter-group filter-group-wide">
+          <span>Filtros</span>
+          <input type="text" id="filtroMovPneu" class="form-control" placeholder="Nº Pneu">
+          <input type="text" id="filtroMovVeiculo" class="form-control" placeholder="Veículo">
+          <input type="text" id="filtroMovLocal" class="form-control" placeholder="Local">
+          <select id="filtroMovTipo" class="form-control">
+            <option value="">Todos os tipos</option>
+            <option value="Instalacao">Instalação</option>
+            <option value="Retirada">Retirada</option>
+            <option value="Recapagem">Recapagem</option>
+            <option value="Atualizacao">Atualização</option>
+            <option value="Baixa">Baixa</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="movement-table-toolbar">
+        <strong id="totalMovimentacoesConsulta">0 movimentações</strong>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="limparFiltrosMovimentacoes()">Limpar filtros</button>
+      </div>
+
+      <div class="table-container movement-table-container">
+        <table class="movement-table">
+          <thead>
+            <tr>
+              <th>Nº Mov.</th>
+              <th>Data</th>
+              <th>Tipo Movimentação</th>
+              <th>Nº Pneu</th>
+              <th>KM</th>
+              <th>Veículo Anterior</th>
+              <th>Local Anterior</th>
+              <th>Veículo Destino</th>
+              <th>Local Destino</th>
+              <th>Observação</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaHistoricoMov"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="../assets/js/app.js"></script>
+</body>
+
+</html>

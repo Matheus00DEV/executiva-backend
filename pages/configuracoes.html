@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurações - Executiva Agronegócios</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+
+<body id="configuracoes-page">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="login-logo" style="font-size:2.5rem;margin-bottom:8px;">🌾</div>
+      <h2>EXECUTIVA</h2>
+      <small>AGRONEGÓCIOS</small>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
+      <a href="motoristas.html"><span class="nav-icon">🧑‍✈️</span><span class="nav-text">Motoristas</span></a>
+      <a href="veiculos.html"><span class="nav-icon">🚚</span><span class="nav-text">Veículos</span></a>
+      <a href="pneus.html"><span class="nav-icon">🛞</span><span class="nav-text">Pneus</span></a>
+      <a href="movimentacao.html"><span class="nav-icon">🔄</span><span class="nav-text">Movimentação</span></a>
+      <a href="relatorios.html"><span class="nav-icon">📈</span><span class="nav-text">Relatórios</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-sair" onclick="fazerLogout()">🚪 Sair do Sistema</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Configurações</h1>
+      <p>Controle de acesso, usuários e permissões do sistema.</p>
+    </div>
+
+    <div class="settings-grid">
+      <section class="card settings-card-wide">
+        <div class="card-header">
+          <div>
+            <h3>Solicitações de acesso</h3>
+            <p class="card-subtitle">Novos cadastros aguardando liberação do administrador.</p>
+          </div>
+          <span class="ops-count" id="totalSolicitacoesPendentes">0</span>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuário</th>
+                <th>Perfil</th>
+                <th>Solicitado em</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tabelaSolicitacoesAcesso"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card settings-card-wide">
+        <div class="card-header">
+          <div>
+            <h3>Usuários aprovados</h3>
+            <p class="card-subtitle">Somente o administrador pode ativar ou bloquear acessos.</p>
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuário</th>
+                <th>Perfil</th>
+                <th>Aprovado em</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tabelaUsuariosAcesso"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="../assets/js/app.js"></script>
+</body>
+
+</html>

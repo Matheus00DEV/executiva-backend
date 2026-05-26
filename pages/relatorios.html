@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatórios - Executiva Agronegócios</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    .rel-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+
+    .rel-tab-btn {
+      padding: 10px 20px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      color: #475569;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all .2s;
+      font-family: inherit;
+    }
+
+    .rel-tab-btn:hover {
+      background: #e8f5e9;
+      color: #1a7a3a;
+      border-color: #1a7a3a;
+    }
+
+    .rel-tab-btn.active {
+      background: #1a7a3a;
+      color: #fff;
+      border-color: #1a7a3a;
+    }
+
+    .rel-section {
+      display: none;
+      animation: tabFade .3s ease;
+    }
+
+    .rel-section.active {
+      display: block;
+    }
+
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-box {
+      background: #fff;
+      border-radius: 12px;
+      padding: 18px 14px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .07);
+      text-align: center;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .kpi-label {
+      font-size: .75rem;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-size: clamp(1.05rem, 1vw, 1.35rem) !important;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.12;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      word-break: normal;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0;
+    }
+
+    .kpi-value-long {
+      font-size: clamp(.9rem, .9vw, 1.08rem) !important;
+    }
+
+    .kpi-sub {
+      font-size: .8rem;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    .kpi-box.verde .kpi-value {
+      color: #1a7a3a;
+    }
+
+    .kpi-box.dourado .kpi-value {
+      color: #d4a017;
+    }
+
+    .kpi-box.danger .kpi-value {
+      color: #ef4444;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-cpk-bom {
+      background: #d1fae5;
+      color: #065f46;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: .75rem;
+      font-weight: 700;
+    }
+
+    .badge-cpk-med {
+      background: #fef3c7;
+      color: #92400e;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: .75rem;
+      font-weight: 700;
+    }
+
+    .badge-cpk-ruim {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: .75rem;
+      font-weight: 700;
+    }
+
+    .filtro-inline {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filtro-inline label {
+      font-size: .85rem;
+      font-weight: 600;
+      color: #64748b;
+      white-space: nowrap;
+    }
+
+    .filtro-inline .form-control {
+      max-width: 220px;
+    }
+
+    .no-data {
+      text-align: center;
+      padding: 40px;
+      color: #94a3b8;
+      font-size: .95rem;
+    }
+
+    .chart-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    @media(max-width:768px) {
+      .chart-row {
+        grid-template-columns: 1fr;
+      }
+
+      .kpi-row {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .ranking-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .ranking-item:last-child {
+      border-bottom: none;
+    }
+
+    .ranking-pos {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #e8f5e9;
+      color: #1a7a3a;
+      font-weight: 800;
+      font-size: .9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .ranking-pos.ouro {
+      background: #fef3c7;
+      color: #d4a017;
+    }
+
+    .ranking-pos.prata {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+
+    .ranking-pos.bronze {
+      background: #fdf4e7;
+      color: #d97706;
+    }
+
+    .ranking-info {
+      flex: 1;
+    }
+
+    .ranking-info strong {
+      display: block;
+      font-size: .9rem;
+      color: #0f172a;
+    }
+
+    .ranking-info span {
+      font-size: .8rem;
+      color: #94a3b8;
+    }
+
+    .ranking-val {
+      font-weight: 700;
+      color: #1a7a3a;
+      font-size: .95rem;
+    }
+  </style>
+</head>
+
+<body id="relatorios-page">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div style="font-size:2.5rem;margin-bottom:8px;">🌾</div>
+      <h2>EXECUTIVA</h2><small>AGRONEGÓCIOS</small>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
+      <a href="motoristas.html"><span class="nav-icon">🧑‍✈️</span><span class="nav-text">Motoristas</span></a>
+      <a href="veiculos.html"><span class="nav-icon">🚚</span><span class="nav-text">Veículos</span></a>
+      <a href="pneus.html"><span class="nav-icon">🛞</span><span class="nav-text">Pneus</span></a>
+      <a href="movimentacao.html"><span class="nav-icon">🔄</span><span class="nav-text">Movimentação</span></a>
+      <a href="relatorios.html" class="active"><span class="nav-icon">📈</span><span
+          class="nav-text">Relatórios</span></a>
+    </nav>
+    <div class="sidebar-footer"><button class="btn-sair" onclick="fazerLogout()">🚪 Sair</button></div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>📊 Relatórios e Análises</h1>
+      <p>Inteligência de dados sobre CPK, desempenho, custos e frota completa.</p>
+    </div>
+
+    <!-- ABAS PRINCIPAIS -->
+    <div class="rel-tabs">
+      <button class="rel-tab-btn active" data-rel="rel-geral">📊 Visão Geral</button>
+      <button class="rel-tab-btn" data-rel="rel-motorista">🧑‍✈️ Por Motorista</button>
+      <button class="rel-tab-btn" data-rel="rel-marca">🏷️ Por Marca</button>
+      <button class="rel-tab-btn" data-rel="rel-pneu">🛞 Por Pneu</button>
+      <button class="rel-tab-btn" data-rel="rel-caminhao">🚚 Por Veículo</button>
+      <button class="rel-tab-btn" data-rel="rel-cpk">💹 CPK Detalhado</button>
+    </div>
+
+    <!-- ======= ABA GERAL ======= -->
+    <div id="rel-geral" class="rel-section active">
+      <div class="card report-filter-card">
+        <div class="chart-card-toolbar">
+          <div>
+            <h3>Filtro do Período</h3>
+            <p>Use para analisar as movimentações de forma mensal ou anual.</p>
+          </div>
+          <div class="chart-controls">
+            <select id="relMovPeriodo" class="form-control">
+              <option value="mensal">Mensal</option>
+              <option value="anual">Anual</option>
+            </select>
+            <select id="relMovAno" class="form-control"></select>
+            <select id="relMovTipo" class="form-control">
+              <option value="">Todos os tipos</option>
+              <option value="Instalacao">Instalação</option>
+              <option value="Retirada">Retirada</option>
+              <option value="Recapagem">Recapagem</option>
+              <option value="Atualizacao">Atualização</option>
+              <option value="Baixa">Baixa</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi-box verde">
+          <div class="kpi-label">Total de Pneus</div>
+          <div class="kpi-value" id="g-totalPneus">0</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Em Uso (Rodando)</div>
+          <div class="kpi-value" id="g-rodando">0</div>
+        </div>
+        <div class="kpi-box dourado">
+          <div class="kpi-label">Em Estoque</div>
+          <div class="kpi-value" id="g-estoque">0</div>
+        </div>
+        <div class="kpi-box danger">
+          <div class="kpi-label">Baixados</div>
+          <div class="kpi-value" id="g-baixados">0</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Total Investido</div>
+          <div class="kpi-value kpi-value-long" id="g-investido">R$ 0</div>
+        </div>
+        <div class="kpi-box verde">
+          <div class="kpi-label">Média de KM</div>
+          <div class="kpi-value kpi-value-long" id="g-mediaKm">0 km</div>
+        </div>
+        <div class="kpi-box dourado">
+          <div class="kpi-label">CPK Médio Geral</div>
+          <div class="kpi-value kpi-value-long" id="g-cpkMedio">R$ 0</div>
+          <div class="kpi-sub">por km rodado</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Total Movimentações</div>
+          <div class="kpi-value" id="g-movs">0</div>
+        </div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card">
+          <h3>Distribuição por Status</h3>
+          <div class="chart-wrapper"><canvas id="g-graficoStatus"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Pneus por Marca</h3>
+          <div class="chart-wrapper"><canvas id="g-graficoMarcas"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card">
+          <h3>Movimentações por Período</h3>
+          <div class="movement-summary rel-movement-summary">
+            <div><span>Total</span><strong id="relMovTotal">0</strong></div>
+            <div><span>Média</span><strong id="relMovMedia">0</strong></div>
+            <div><span>Pico</span><strong id="relMovPico">-</strong></div>
+          </div>
+          <div class="chart-wrapper"><canvas id="g-graficoMovs"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Pneus por Tipo</h3>
+          <div class="chart-wrapper"><canvas id="g-graficoTipos"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======= ABA MOTORISTA ======= -->
+    <div id="rel-motorista" class="rel-section">
+      <div class="filtro-inline">
+        <label>Filtrar Motorista:</label>
+        <input type="text" id="mot-filtro" class="form-control" placeholder="Nome do motorista...">
+      </div>
+      <div class="chart-row">
+        <div class="chart-card">
+          <h3>🧑‍✈️ Veículos Atendidos por Motorista</h3>
+          <div class="chart-wrapper"><canvas id="mot-graficoVeiculos"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>💰 Custo Atribuído (R$)</h3>
+          <div class="chart-wrapper"><canvas id="mot-graficoCusto"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title">📋 Análise de Desempenho por Motorista</div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Motorista</th>
+                <th>Veículo(s) Vinculado(s)</th>
+                <th>Qtd Pneus Ativos</th>
+                <th>Custo Total de Pneus</th>
+                <th>KM Médio Rodado</th>
+                <th>CPK Médio</th>
+              </tr>
+            </thead>
+            <tbody id="mot-tabela"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======= ABA MARCA ======= -->
+    <div id="rel-marca" class="rel-section">
+      <div class="chart-row">
+        <div class="chart-card">
+          <h3>💰 Investimento por Marca</h3>
+          <div class="chart-wrapper"><canvas id="m-graficoCusto"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>📏 Média de KM por Marca</h3>
+          <div class="chart-wrapper"><canvas id="m-graficoKm"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card">
+          <h3>💹 CPK por Marca</h3>
+          <div class="chart-wrapper"><canvas id="m-graficoCpk"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>🏆 Ranking CPK (Menor = Melhor)</h3>
+          <div id="m-rankingCpk"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title">📋 Tabela Completa por Marca</div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Marca</th>
+                <th>Qtd Pneus</th>
+                <th>Total Investido</th>
+                <th>KM Médio</th>
+                <th>CPK Médio</th>
+                <th>Pneus Ativos</th>
+                <th>Baixados</th>
+              </tr>
+            </thead>
+            <tbody id="m-tabelaMarcas"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======= ABA PNEU ======= -->
+    <div id="rel-pneu" class="rel-section">
+      <div class="filtro-inline">
+        <label>Filtrar:</label>
+        <input type="text" id="p-filtroNum" class="form-control" placeholder="Nº do Pneu...">
+        <select id="p-filtroMarca" class="form-control">
+          <option value="">Todas as marcas</option>
+        </select>
+        <select id="p-filtroStatus" class="form-control">
+          <option value="">Todos os status</option>
+          <option value="Rodando">Rodando</option>
+          <option value="Estoque">Estoque</option>
+          <option value="Baixado">Baixado</option>
+          <option value="Recapado">Recapado</option>
+        </select>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Nº Pneu</th>
+              <th>Marca</th>
+              <th>Modelo</th>
+              <th>Status</th>
+              <th>Veículo</th>
+              <th>Custo Total</th>
+              <th>KM Rodado</th>
+              <th>CPK</th>
+              <th>Recapagens</th>
+              <th>Profund. Atual</th>
+            </tr>
+          </thead>
+          <tbody id="p-tabelaPneus"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ======= ABA CAMINHÃO ======= -->
+    <div id="rel-caminhao" class="rel-section">
+      <div class="filtro-inline">
+        <label>Filtrar veículo:</label>
+        <input type="text" id="c-filtroVeiculo" class="form-control" placeholder="Placa ou modelo...">
+      </div>
+      <div class="chart-row">
+        <div class="chart-card">
+          <h3>🛞 Pneus por Veículo</h3>
+          <div class="chart-wrapper"><canvas id="c-graficoVeiculos"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>💰 Custo Total por Veículo</h3>
+          <div class="chart-wrapper"><canvas id="c-graficoCusto"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title">📋 Análise por Veículo</div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Placa / Veículo</th>
+                <th>Tipo</th>
+                <th>Pneus Ativos</th>
+                <th>Marcas em Uso</th>
+                <th>Custo Total Pneus</th>
+                <th>CPK Médio</th>
+              </tr>
+            </thead>
+            <tbody id="c-tabelaVeiculos"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px;">
+        <div class="section-title">🔍 Pneus do Veículo Selecionado</div>
+        <select id="c-selectVeiculo" class="form-control" style="max-width:300px;margin-bottom:16px;"></select>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Nº Pneu</th>
+                <th>Marca</th>
+                <th>Posição</th>
+                <th>Status</th>
+                <th>Profund.</th>
+                <th>Valor</th>
+              </tr>
+            </thead>
+            <tbody id="c-pneusVeiculo"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======= ABA CPK ======= -->
+    <div id="rel-cpk" class="rel-section">
+      <div class="kpi-row">
+        <div class="kpi-box verde">
+          <div class="kpi-label">CPK Médio Geral</div>
+          <div class="kpi-value" id="cpk-medio" style="font-size:1.2rem;">R$ 0,00</div>
+          <div class="kpi-sub">por km rodado</div>
+        </div>
+        <div class="kpi-box dourado">
+          <div class="kpi-label">Melhor Marca (CPK)</div>
+          <div class="kpi-value" id="cpk-melhorMarca" style="font-size:1.2rem;">-</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Maior KM Rodado</div>
+          <div class="kpi-value" id="cpk-maiorKm" style="font-size:1.2rem;">0 km</div>
+        </div>
+        <div class="kpi-box danger">
+          <div class="kpi-label">Pior CPK (Marca)</div>
+          <div class="kpi-value" id="cpk-piorMarca" style="font-size:1.2rem;">-</div>
+        </div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card">
+          <h3>💹 CPK por Marca (R$/km)</h3>
+          <div class="chart-wrapper"><canvas id="cpk-graficoCpkMarca"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>📏 KM Rodado por Pneu (Top 10)</h3>
+          <div class="chart-wrapper"><canvas id="cpk-graficoKmPneu"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title">🔍 CPK Individual por Pneu</div>
+        <div class="filtro-inline">
+          <input type="text" id="cpk-filtro" class="form-control" placeholder="Buscar pneu...">
+          <select id="cpk-ordenar" class="form-control">
+            <option value="cpk-asc">Ordenar: Melhor CPK (↑)</option>
+            <option value="cpk-desc">Ordenar: Pior CPK (↓)</option>
+            <option value="km-desc">Ordenar: Mais KM (↓)</option>
+            <option value="custo-desc">Ordenar: Maior Custo (↓)</option>
+          </select>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Nº Pneu</th>
+                <th>Marca</th>
+                <th>Status</th>
+                <th>Custo Total</th>
+                <th>KM Rodado</th>
+                <th>CPK (R$/km)</th>
+                <th>Recapagens</th>
+                <th>Avaliação</th>
+              </tr>
+            </thead>
+            <tbody id="cpk-tabela"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="../assets/js/chart.umd.js"></script>
+  <script src="../assets/js/simple-chart-fallback.js"></script>
+  <script src="../assets/js/app.js"></script>
+  <script src="../assets/js/reports.js"></script>
+</body>
+
+</html>

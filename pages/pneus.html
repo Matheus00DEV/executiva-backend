@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pneus Cadastrados - Executiva Agronegócios</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body id="pneus-page">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div style="font-size:2.5rem;margin-bottom:8px;">🌾</div><h2>EXECUTIVA</h2><small>AGRONEGÓCIOS</small></div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
+      <a href="motoristas.html"><span class="nav-icon">🧑‍✈️</span><span class="nav-text">Motoristas</span></a>
+      <a href="veiculos.html"><span class="nav-icon">🚚</span><span class="nav-text">Veículos</span></a>
+      <a href="pneus.html" class="active"><span class="nav-icon">🛞</span><span class="nav-text">Pneus</span></a>
+      <a href="movimentacao.html"><span class="nav-icon">🔄</span><span class="nav-text">Movimentação</span></a>
+      <a href="relatorios.html"><span class="nav-icon">📈</span><span class="nav-text">Relatórios</span></a>
+    </nav>
+    <div class="sidebar-footer"><button class="btn-sair" onclick="fazerLogout()">🚪 Sair</button></div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Gestão de Pneus</h1>
+      <p>Cadastre e gerencie os pneus da frota.</p>
+    </div>
+    
+    <div class="card">
+      <div class="tabs">
+        <button class="tab-btn active" data-target="tab-cadastro">➕ Cadastrar Pneu</button>
+        <button class="tab-btn" data-target="tab-lista">📋 Pneus Cadastrados</button>
+      </div>
+
+      <!-- ABA CADASTRO -->
+      <div id="tab-cadastro" class="tab-content active">
+        <div class="form-grid">
+          <div class="form-group"><label>Código do Sistema</label><input type="text" id="codSistema" class="form-control" readonly></div>
+          <div class="form-group"><label>Nº de Fogo *</label><input type="text" id="numPneu" class="form-control" placeholder="EX: 123456"></div>
+          <div class="form-group"><label>Marca *</label><input type="text" id="marca" class="form-control" placeholder="EX: Michelin"></div>
+          <div class="form-group"><label>Modelo *</label><input type="text" id="modelo" class="form-control" placeholder="EX: X MULTI"></div>
+          <div class="form-group"><label>Tipo</label>
+            <select id="tipo" class="form-control">
+              <option value="Direcional">Direcional</option>
+              <option value="Tração">Tração</option>
+              <option value="Livre">Livre (Carreta)</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Medida</label><input type="text" id="medida" class="form-control" value="295/80 R22.5"></div>
+          <div class="form-group"><label>Data da Compra *</label><input type="date" id="dataCompra" class="form-control"></div>
+          <div class="form-group"><label>Valor (R$)</label><input type="number" id="valorCompra" class="form-control" step="0.01" placeholder="0.00"></div>
+          <div class="form-group"><label>KM na Compra</label><input type="number" id="kmCompra" class="form-control" placeholder="0"></div>
+          <div class="form-group"><label>Profundidade (mm)</label><input type="number" id="profundidade" class="form-control" step="0.1" placeholder="18.0"></div>
+          <div class="form-group"><label>DOT</label><input type="text" id="dot" class="form-control" placeholder="EX: 2024"></div>
+          <div class="form-group"><label>Série</label><input type="text" id="serie" class="form-control" placeholder="Nº de série"></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" onclick="location.reload()">🔄 Limpar</button>
+          <button id="btnSalvarCadastro" class="btn btn-primary">💾 Salvar Pneu</button>
+        </div>
+      </div>
+
+      <!-- ABA LISTA -->
+      <div id="tab-lista" class="tab-content">
+        <div class="filtros-row">
+          <input type="text" id="filtroPneu" class="form-control" placeholder="🔍 Buscar por Nº do pneu...">
+          <input type="text" id="filtroMarca" class="form-control" placeholder="Filtrar por marca...">
+          <select id="filtroStatus" class="form-control">
+            <option value="">Todos os status</option>
+            <option value="Estoque">Estoque</option>
+            <option value="Rodando">Rodando</option>
+            <option value="Baixado">Baixado</option>
+            <option value="Recapado">Recapado</option>
+          </select>
+          <input type="text" id="filtroVeiculo" class="form-control" placeholder="Filtrar por veículo...">
+        </div>
+        <div class="table-container">
+          <table>
+            <thead><tr><th>Nº Pneu</th><th>Marca</th><th>Modelo</th><th>Medida</th><th>Status</th><th>Veículo</th><th>Ações</th></tr></thead>
+            <tbody id="corpoTabelaPneus"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script src="../assets/js/app.js"></script>
+</body>
+</html>

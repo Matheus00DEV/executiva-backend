@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuração Firebase — Executiva Agronegócios</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --verde:  #1a7a3a;
+      --verde2: #10b981;
+      --ouro:   #d4a017;
+      --bg:     #0d1117;
+      --card:   #161b22;
+      --border: #30363d;
+      --text:   #e6edf3;
+      --muted:  #8b949e;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .container { max-width: 780px; width: 100%; }
+
+    .header { text-align: center; margin-bottom: 36px; }
+    .header .logo { font-size: 3.5rem; margin-bottom: 12px; }
+    .header h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 6px; }
+    .header h1 span { color: var(--ouro); }
+    .header p { color: var(--muted); font-size: 0.95rem; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--ouro);
+    }
+
+    .step {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+    .step-num {
+      background: var(--verde);
+      color: #fff;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .step-text { font-size: 0.9rem; line-height: 1.6; color: var(--muted); }
+    .step-text strong { color: var(--text); }
+    .step-text a { color: var(--verde2); text-decoration: none; }
+    .step-text a:hover { text-decoration: underline; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    input {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.88rem;
+      transition: border-color .2s;
+    }
+    input:focus { outline: none; border-color: var(--verde); }
+    input::placeholder { color: #484f58; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--verde), #2d9e55);
+      color: #fff;
+      width: 100%;
+      justify-content: center;
+      font-size: 1rem;
+      padding: 14px;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(26,122,58,0.4); }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .btn-gold {
+      background: linear-gradient(135deg, var(--ouro), #b8860b);
+      color: #fff;
+      width: 100%;
+      justify-content: center;
+      font-size: 1rem;
+      padding: 14px;
+    }
+    .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(212,160,23,0.4); }
+    .btn-gold:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    #log {
+      background: #0a0c0f;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      font-family: 'Consolas', monospace;
+      font-size: 0.82rem;
+      max-height: 260px;
+      overflow-y: auto;
+      line-height: 1.8;
+      display: none;
+    }
+    .log-ok   { color: #3fb950; }
+    .log-err  { color: #f85149; }
+    .log-info { color: #79c0ff; }
+    .log-warn { color: var(--ouro); }
+
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .badge-ok   { background: rgba(63,185,80,.15); color: #3fb950; border: 1px solid rgba(63,185,80,.3); }
+    .badge-warn { background: rgba(212,160,23,.15); color: var(--ouro); border: 1px solid rgba(212,160,23,.3); }
+    .badge-err  { background: rgba(248,81,73,.15); color: #f85149; border: 1px solid rgba(248,81,73,.3); }
+
+    #statusConexao { margin-bottom: 16px; }
+
+    .resumo-dados {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .resumo-item {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+    .resumo-item .r-num { font-size: 1.5rem; font-weight: 800; color: var(--verde2); }
+    .resumo-item .r-label { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+    .nav-footer {
+      text-align: center;
+      margin-top: 28px;
+      padding: 20px;
+      border-top: 1px solid var(--border);
+    }
+    .nav-footer a {
+      color: var(--verde2);
+      text-decoration: none;
+      margin: 0 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .nav-footer a:hover { color: var(--ouro); }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="logo">🔥</div>
+    <h1>Configuração <span>Firebase</span></h1>
+    <p>Integre seu banco de dados em nuvem em 3 passos simples</p>
+  </div>
+
+  <!-- PASSO 1: Instruções -->
+  <div class="card">
+    <h2>📋 Passo 1 — Criar Projeto no Firebase</h2>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">
+        Acesse <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> e clique em <strong>"Criar projeto"</strong>. Dê o nome <strong>"executiva-pneus"</strong> (ou qualquer nome).
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">
+        No menu lateral, vá em <strong>Criação → Firestore Database</strong> e clique em <strong>"Criar banco de dados"</strong>. Escolha o modo <strong>Produção</strong> e selecione a região <strong>southamerica-east1 (São Paulo)</strong>.
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text">
+        No menu lateral, clique em <strong>Autenticação → Primeiros passos</strong>, depois em <strong>E-mail/senha</strong> e ative. Crie um usuário em <strong>"Usuários"</strong> com seu email e senha.
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-text">
+        Em <strong>Configurações do projeto (⚙️) → Geral → Seus aplicativos</strong>, clique em <strong>&lt;/&gt; (Web)</strong>, registre o app e copie o objeto <code>firebaseConfig</code>.
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-text">
+        No arquivo <strong>assets/js/db.js</strong>, substitua os valores de <code>firebaseConfig</code> (apiKey, authDomain, projectId, etc.) pelos dados copiados.
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-text">
+        Em <strong>Firestore Database → Regras</strong>, cole as regras abaixo para restringir acesso apenas a usuários logados e clique em <strong>Publicar</strong>:
+        <br><br>
+        <code style="display:block;background:#0a0c0f;padding:10px;border-radius:6px;font-size:0.8rem;color:#79c0ff;line-height:1.8;">
+          rules_version = '2';<br>
+          service cloud.firestore {<br>
+          &nbsp;&nbsp;match /databases/{database}/documents {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;match /{document=**} {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allow read, write: if request.auth != null;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+          &nbsp;&nbsp;}<br>
+          }
+        </code>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASSO 2: Testar Conexão -->
+  <div class="card">
+    <h2>🔌 Passo 2 — Testar Conexão</h2>
+    <p style="color:var(--muted);font-size:0.9rem;margin-bottom:16px;">
+      Preencha suas credenciais de acesso para verificar se o Firebase está configurado corretamente.
+    </p>
+    <div class="form-grid" style="margin-bottom:16px;">
+      <div class="form-group">
+        <label>Email do Usuário</label>
+        <input type="email" id="inputEmail" placeholder="seu@email.com">
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="inputSenha" placeholder="••••••••">
+      </div>
+    </div>
+    <div id="statusConexao"></div>
+    <button class="btn btn-primary" id="btnTestar" onclick="testarConexao()">
+      🔌 Testar Conexão com Firebase
+    </button>
+  </div>
+
+  <!-- PASSO 3: Migração -->
+  <div class="card">
+    <h2>📦 Passo 3 — Migrar Dados para o Firebase</h2>
+    <p style="color:var(--muted);font-size:0.9rem;margin-bottom:16px;">
+      Seus dados atuais estão no <code>localStorage</code> deste navegador. Clique abaixo para enviá-los para o Firebase (execute apenas uma vez).
+    </p>
+
+    <div class="resumo-dados" id="resumoDados">
+      <!-- Preenchido via JS -->
+    </div>
+
+    <button class="btn btn-gold" id="btnMigrar" onclick="iniciarMigracao()" disabled>
+      🚀 Migrar Dados para o Firebase
+    </button>
+
+    <hr class="divider">
+
+    <div id="log"></div>
+  </div>
+
+  <div class="nav-footer">
+    <a href="dashboard.html">← Voltar ao Dashboard</a>
+    <a href="../index.html">🏠 Início</a>
+  </div>
+</div>
+
+<!-- Firebase SDK (módulos ESM via CDN) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getFirestore, collection, getDocs, doc, writeBatch
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import {
+    getAuth, signInWithEmailAndPassword, signOut
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  /* ── Importa config do db.js ──────────────────────────── */
+  // Lê configuração diretamente do db.js via fetch para não duplicar
+  // Se preferir, cole o firebaseConfig diretamente aqui também.
+
+  // Detecta configuração do db.js (injeta via fetch do arquivo)
+  let _app, _db, _auth;
+
+  function lerConfigDB() {
+    return fetch('../assets/js/db.js')
+      .then(r => r.text())
+      .then(txt => {
+        // Extrai os valores do firebaseConfig do db.js
+        const fields = ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'];
+        const cfg = {};
+        fields.forEach(f => {
+          const m = txt.match(new RegExp(`${f}\\s*:\\s*["']([^"']+)["']`));
+          if (m) cfg[f] = m[1];
+        });
+        return cfg;
+      });
+  }
+
+  window.testarConexao = async function() {
+    const btn = document.getElementById('btnTestar');
+    const statusDiv = document.getElementById('statusConexao');
+    const email = document.getElementById('inputEmail').value.trim();
+    const senha = document.getElementById('inputSenha').value;
+
+    if (!email || !senha) {
+      mostrarStatus('warn', '⚠️ Preencha email e senha');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Conectando...';
+    statusDiv.innerHTML = '';
+
+    try {
+      const cfg = await lerConfigDB();
+      if (cfg.apiKey && cfg.apiKey.includes('COLE')) {
+        mostrarStatus('err', '❌ db.js ainda não foi configurado! Substitua os valores do firebaseConfig.');
+        btn.disabled = false;
+        btn.innerHTML = '🔌 Testar Conexão com Firebase';
+        return;
+      }
+
+      _app  = initializeApp(cfg, 'setup-app');
+      _db   = getFirestore(_app);
+      _auth = getAuth(_app);
+
+      await signInWithEmailAndPassword(_auth, email, senha);
+      mostrarStatus('ok', '✅ Conexão estabelecida! Usuário autenticado com sucesso.');
+      document.getElementById('btnMigrar').disabled = false;
+      mostrarResumoDados();
+    } catch (e) {
+      let msg = e.message || 'Erro desconhecido';
+      if (e.code === 'auth/invalid-credential') msg = 'Email ou senha incorretos.';
+      if (e.code === 'auth/network-request-failed') msg = 'Sem conexão com a internet.';
+      mostrarStatus('err', `❌ Erro: ${msg}`);
+      btn.disabled = false;
+      btn.innerHTML = '🔌 Testar Conexão com Firebase';
+    }
+    btn.disabled = false;
+    btn.innerHTML = '🔌 Testar Conexão com Firebase';
+  };
+
+  function mostrarStatus(tipo, msg) {
+    const div = document.getElementById('statusConexao');
+    const cls = tipo === 'ok' ? 'badge-ok' : tipo === 'err' ? 'badge-err' : 'badge-warn';
+    div.innerHTML = `<div class="badge-status ${cls}">${msg}</div>`;
+  }
+
+  function mostrarResumoDados() {
+    const chaves = [
+      { k: 'pneus',             label: '🛞 Pneus' },
+      { k: 'movimentacoes',     label: '🔄 Movimentações' },
+      { k: 'veiculos',          label: '🚚 Veículos' },
+      { k: 'motoristas',        label: '👤 Motoristas' },
+      { k: 'recapagens_custos', label: '💰 Recapagens' }
+    ];
+    const container = document.getElementById('resumoDados');
+    container.innerHTML = chaves.map(({ k, label }) => {
+      const raw = localStorage.getItem(k);
+      let qtd = 0;
+      try { qtd = raw ? JSON.parse(raw).length : 0; } catch {}
+      return `
+        <div class="resumo-item">
+          <div class="r-num">${qtd}</div>
+          <div class="r-label">${label}</div>
+        </div>`;
+    }).join('');
+  }
+
+  // Chama resumo ao carregar
+  mostrarResumoDados();
+
+  window.iniciarMigracao = async function() {
+    if (!_db || !_auth) {
+      alert('Teste a conexão primeiro!');
+      return;
+    }
+    if (!confirm('Migrar todos os dados do localStorage para o Firebase?\n\nEsta operação pode ser executada múltiplas vezes sem problema (sobrescreve os dados).')) return;
+
+    const btn = document.getElementById('btnMigrar');
+    btn.disabled = true;
+    btn.textContent = '⏳ Migrando...';
+
+    const logEl = document.getElementById('log');
+    logEl.style.display = 'block';
+    logEl.innerHTML = '';
+
+    function log(tipo, msg) {
+      const cls = tipo === 'ok' ? 'log-ok' : tipo === 'err' ? 'log-err' : tipo === 'warn' ? 'log-warn' : 'log-info';
+      logEl.innerHTML += `<div class="${cls}">${new Date().toLocaleTimeString('pt-BR')} — ${msg}</div>`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    const chaves = ['pneus', 'movimentacoes', 'veiculos', 'motoristas', 'recapagens_custos'];
+    let total = 0;
+
+    for (const chave of chaves) {
+      try {
+        const raw = localStorage.getItem(chave);
+        if (!raw) { log('warn', `'${chave}' — sem dados no localStorage, pulando`); continue; }
+        const dados = JSON.parse(raw);
+        if (!Array.isArray(dados) || !dados.length) { log('warn', `'${chave}' — lista vazia, pulando`); continue; }
+
+        log('info', `Migrando '${chave}' (${dados.length} registros)...`);
+
+        // Batch write (máx 500 por lote)
+        for (let i = 0; i < dados.length; i += 400) {
+          const chunk = dados.slice(i, i + 400);
+          const batch  = writeBatch(_db);
+          chunk.forEach(item => {
+            if (!item.id) item.id = Date.now().toString(36) + Math.random().toString(36).substr(2);
+            const ref = doc(_db, chave, String(item.id));
+            batch.set(ref, item, { merge: true });
+          });
+          await batch.commit();
+        }
+
+        total += dados.length;
+        log('ok', `✅ '${chave}' migrado com sucesso! (${dados.length} registros)`);
+      } catch (e) {
+        log('err', `❌ Erro em '${chave}': ${e.message}`);
+      }
+    }
+
+    log('ok', `🎉 Migração concluída! Total de ${total} registros enviados para o Firebase.`);
+    log('info', `Próximo passo: atualize os arquivos HTML para usar app-firebase.js em vez de app.js`);
+    btn.textContent = '✅ Migração Concluída!';
+  };
+</script>
+
+</body>
+</html>

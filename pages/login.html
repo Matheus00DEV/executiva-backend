@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Executiva Agronegocios</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    body.login-page {
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      background: linear-gradient(120deg, #123524, #157347 58%, #365a85);
+    }
+
+    .auth-shell {
+      width: min(920px, 100%);
+      min-height: 560px;
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      background: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 8px;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+      overflow: hidden;
+    }
+
+    .auth-brand {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 36px;
+      background: #123524;
+      color: #fff;
+    }
+
+    .auth-brand-mark {
+      font-size: 3rem;
+      line-height: 1;
+      margin-bottom: 14px;
+    }
+
+    .auth-brand h1 {
+      color: #fff;
+      font-size: 1.95rem;
+      font-weight: 900;
+      margin-bottom: 4px;
+    }
+
+    .auth-brand strong {
+      color: var(--dourado);
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .auth-brand p {
+      color: rgba(255, 255, 255, 0.78);
+      max-width: 310px;
+      margin-top: 26px;
+    }
+
+    .auth-brand small {
+      color: rgba(255, 255, 255, 0.58);
+    }
+
+    .auth-panel {
+      padding: 42px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .auth-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 6px;
+      margin-bottom: 28px;
+      border: 1px solid var(--cinza-200);
+      border-radius: 8px;
+      background: var(--cinza-50);
+    }
+
+    .auth-tab {
+      height: 42px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--cinza-500);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .auth-tab.active {
+      background: var(--verde);
+      color: #fff;
+    }
+
+    .auth-title {
+      margin-bottom: 4px;
+      font-size: 1.45rem;
+    }
+
+    .auth-copy {
+      margin-bottom: 24px;
+      color: var(--cinza-500);
+    }
+
+    .auth-form {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .auth-form.active {
+      display: flex;
+    }
+
+    .auth-actions {
+      margin-top: 6px;
+    }
+
+    .auth-actions .btn {
+      width: 100%;
+      min-height: 46px;
+    }
+
+    .auth-message {
+      display: none;
+      margin-top: 18px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .auth-message.show {
+      display: block;
+    }
+
+    .auth-message.error {
+      background: var(--erro-bg);
+      color: #991b1b;
+    }
+
+    .auth-message.success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    @media(max-width: 760px) {
+      body.login-page {
+        padding: 14px;
+      }
+
+      .auth-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .auth-brand {
+        padding: 24px;
+        gap: 24px;
+      }
+
+      .auth-panel {
+        padding: 24px;
+      }
+    }
+  </style>
+</head>
+
+<body class="login-page">
+  <section class="auth-shell" aria-label="Acesso ao sistema">
+    <div class="auth-brand">
+      <div>
+        <div class="auth-brand-mark">EA</div>
+        <h1>EXECUTIVA</h1>
+        <strong>Agronegocios</strong>
+        <p>Sistema de gestao de pneus e frota com acesso individual para cada usuario.</p>
+      </div>
+      <small>Versao 3.0</small>
+    </div>
+
+    <div class="auth-panel">
+      <div class="auth-tabs" role="tablist">
+        <button type="button" class="auth-tab active" id="tabEntrar" onclick="alternarAuth('login')">Entrar</button>
+        <button type="button" class="auth-tab" id="tabCadastrar" onclick="alternarAuth('cadastro')">Cadastrar</button>
+      </div>
+
+      <h2 class="auth-title" id="authTitle">Acessar conta</h2>
+      <p class="auth-copy" id="authCopy">Entre com seu usuario e senha para continuar.</p>
+
+      <form class="auth-form active" id="formLogin" onsubmit="event.preventDefault(); fazerLogin();">
+        <div class="form-group">
+          <label for="loginUsuario">Usuario</label>
+          <input type="text" id="loginUsuario" class="form-control" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label for="loginSenha">Senha</label>
+          <input type="password" id="loginSenha" class="form-control" autocomplete="current-password" required>
+        </div>
+        <div class="auth-actions">
+          <button type="submit" class="btn btn-primary">Entrar no sistema</button>
+        </div>
+      </form>
+
+      <form class="auth-form" id="formCadastro" onsubmit="event.preventDefault(); cadastrarUsuario();">
+        <div class="form-group">
+          <label for="cadastroNome">Nome</label>
+          <input type="text" id="cadastroNome" class="form-control" autocomplete="name" required>
+        </div>
+        <div class="form-group">
+          <label for="cadastroUsuario">Usuario</label>
+          <input type="text" id="cadastroUsuario" class="form-control" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label for="cadastroPerfil">Tipo de acesso</label>
+          <select id="cadastroPerfil" class="form-control" required>
+            <option value="operacional">Operacional</option>
+            <option value="motorista">Motorista</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="cadastroSenha">Senha</label>
+          <input type="password" id="cadastroSenha" class="form-control" autocomplete="new-password" minlength="4" required>
+        </div>
+        <div class="auth-actions">
+          <button type="submit" class="btn btn-primary">Criar acesso</button>
+        </div>
+      </form>
+
+      <div id="authMessage" class="auth-message" role="status"></div>
+    </div>
+  </section>
+
+  <script>
+    const CHAVE_SESSAO = 'usuarioLogado';
+    const API_URL = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+      ? 'http://localhost:3000/api'
+      : 'https://executiva-backend.onrender.com/api';
+
+    localStorage.removeItem(CHAVE_SESSAO);
+    sessionStorage.removeItem(CHAVE_SESSAO);
+    sessionStorage.removeItem('authToken');
+
+    function normalizarUsuario(usuario) {
+      return String(usuario || '').trim().toLowerCase();
+    }
+
+    function mostrarMensagem(texto, tipo = 'error') {
+      const msg = document.getElementById('authMessage');
+      msg.textContent = texto;
+      msg.className = `auth-message show ${tipo}`;
+    }
+
+    function alternarAuth(tipo) {
+      const loginAtivo = tipo === 'login';
+      document.getElementById('formLogin').classList.toggle('active', loginAtivo);
+      document.getElementById('formCadastro').classList.toggle('active', !loginAtivo);
+      document.getElementById('tabEntrar').classList.toggle('active', loginAtivo);
+      document.getElementById('tabCadastrar').classList.toggle('active', !loginAtivo);
+      document.getElementById('authTitle').textContent = loginAtivo ? 'Acessar conta' : 'Criar acesso';
+      document.getElementById('authCopy').textContent = loginAtivo
+        ? 'Entre com seu usuario e senha para continuar.'
+        : 'Cadastro rapido: o administrador precisa aprovar o acesso.';
+      document.getElementById('authMessage').className = 'auth-message';
+    }
+
+    function redirecionarPorPerfil(usuario) {
+      window.location.href = usuario.perfil === 'motorista' ? 'motorista-app.html' : 'dashboard.html';
+    }
+
+    function salvarSessao(data) {
+      const usuario = {
+        ...(data.usuario || {}),
+        token: data.token
+      };
+      sessionStorage.setItem(CHAVE_SESSAO, JSON.stringify(usuario));
+      if (data.token) sessionStorage.setItem('authToken', data.token);
+      return usuario;
+    }
+
+    async function enviarAuth(path, payload) {
+      const res = await fetch(`${API_URL}/auth${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Erro ao conectar com o servidor.');
+      return data;
+    }
+
+    function setAuthLoading(formId, carregando, texto) {
+      const form = document.getElementById(formId);
+      const btn = form?.querySelector('button[type="submit"]');
+      if (!btn) return;
+      if (carregando) {
+        btn.dataset.originalText = btn.textContent;
+        btn.textContent = texto;
+        btn.disabled = true;
+      } else {
+        btn.textContent = btn.dataset.originalText || btn.textContent;
+        btn.disabled = false;
+        delete btn.dataset.originalText;
+      }
+    }
+
+    async function cadastrarUsuario() {
+      const nome = document.getElementById('cadastroNome').value.trim();
+      const usuario = normalizarUsuario(document.getElementById('cadastroUsuario').value);
+      const perfil = document.getElementById('cadastroPerfil').value;
+      const senha = document.getElementById('cadastroSenha').value;
+
+      if (!nome || !usuario || !senha) {
+        mostrarMensagem('Preencha nome, usuario e senha.');
+        return;
+      }
+
+      if (senha.length < 4) {
+        mostrarMensagem('Use uma senha com pelo menos 4 caracteres.');
+        return;
+      }
+
+      setAuthLoading('formCadastro', true, 'Enviando...');
+      try {
+        const data = await enviarAuth('/cadastro', { nome, usuario, perfil, senha });
+        if (data.token && data.usuario) {
+          const usuarioSessao = salvarSessao(data);
+          redirecionarPorPerfil(usuarioSessao);
+          return;
+        }
+
+        document.getElementById('formCadastro').reset();
+        alternarAuth('login');
+        mostrarMensagem(data.message || 'Solicitacao enviada. Aguarde o administrador aprovar seu acesso.', 'success');
+      } catch (error) {
+        mostrarMensagem(error.message);
+      } finally {
+        setAuthLoading('formCadastro', false);
+      }
+    }
+
+    async function fazerLogin() {
+      const usuario = normalizarUsuario(document.getElementById('loginUsuario').value);
+      const senha = document.getElementById('loginSenha').value;
+
+      if (!usuario || !senha) {
+        mostrarMensagem('Informe usuario e senha.');
+        return;
+      }
+
+      setAuthLoading('formLogin', true, 'Entrando...');
+      try {
+        const data = await enviarAuth('/login', { usuario, senha });
+        const usuarioSessao = salvarSessao(data);
+        redirecionarPorPerfil(usuarioSessao);
+      } catch (error) {
+        mostrarMensagem(error.message);
+      } finally {
+        setAuthLoading('formLogin', false);
+      }
+    }
+  </script>
+</body>
+
+</html>

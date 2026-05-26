@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motoristas - Executiva Agronegócios</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <script src="../assets/js/chart.umd.js"></script>
+  <script src="../assets/js/simple-chart-fallback.js"></script>
+</head>
+
+<body id="motoristas-page">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div style="font-size:2.5rem;margin-bottom:8px;">🌾</div>
+      <h2>EXECUTIVA</h2><small>AGRONEGÓCIOS</small>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html"><span class="nav-icon">📊</span><span class="nav-text">Dashboard</span></a>
+      <a href="motoristas.html" class="active"><span class="nav-icon">🧑‍✈️</span><span
+          class="nav-text">Motoristas</span></a>
+      <a href="veiculos.html"><span class="nav-icon">🚚</span><span class="nav-text">Veículos</span></a>
+      <a href="pneus.html"><span class="nav-icon">🛞</span><span class="nav-text">Pneus</span></a>
+      <a href="movimentacao.html"><span class="nav-icon">🔄</span><span class="nav-text">Movimentação</span></a>
+      <a href="relatorios.html"><span class="nav-icon">📈</span><span class="nav-text">Relatórios</span></a>
+    </nav>
+    <div class="sidebar-footer"><button class="btn-sair" onclick="fazerLogout()">🚪 Sair</button></div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Gestão de Motoristas</h1>
+      <p>Cadastre e gerencie os motoristas da frota.</p>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <button class="tab-btn active" data-target="tab-cadastro">➕ Cadastrar Motorista</button>
+        <button class="tab-btn" data-target="tab-lista">📋 Motoristas Cadastrados</button>
+      </div>
+
+      <!-- ABA CADASTRO -->
+      <div id="tab-cadastro" class="tab-content active">
+        <div class="form-grid">
+          <div class="form-group"><label>Nome Completo *</label><input type="text" id="motoristaNome"
+              class="form-control" placeholder="EX: João da Silva"></div>
+          <div class="form-group"><label>CPF *</label><input type="text" id="motoristaCpf" class="form-control"
+              placeholder="EX: 000.000.000-00"></div>
+          <div class="form-group"><label>CNH *</label><input type="text" id="motoristaCnh" class="form-control"
+              placeholder="Número da CNH"></div>
+          <div class="form-group"><label>Categoria CNH</label>
+            <select id="motoristaCatCnh" class="form-control">
+              <option value="">Selecione...</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+              <option value="E">E</option>
+              <option value="AB">AB</option>
+              <option value="AC">AC</option>
+              <option value="AD">AD</option>
+              <option value="AE">AE</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Validade CNH</label><input type="date" id="motoristaValCnh"
+              class="form-control"></div>
+          <div class="form-group"><label>Telefone</label><input type="text" id="motoristaTel" class="form-control"
+              placeholder="(00) 00000-0000"></div>
+          <div class="form-group" style="grid-column: span 2;"><label>Observações</label><textarea id="motoristaObs"
+              class="form-control" rows="2"></textarea></div>
+        </div>
+        <div class="form-actions"><button id="btnSalvarMotorista" class="btn btn-primary">💾 Salvar Motorista</button>
+        </div>
+      </div>
+
+      <!-- ABA LISTA E DASHBOARD -->
+      <div id="tab-lista" class="tab-content">
+        <!-- CARDS DASHBOARD MOTORISTAS -->
+        <div class="stats-grid" style="margin-bottom: 20px;">
+          <div class="stat-card">
+            <div class="stat-icon blue">🧑‍✈️</div>
+            <div class="stat-info">
+              <div class="stat-label">Total Motoristas</div>
+              <div class="stat-value" id="dashTotalMotoristas">0</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon red">⚠️</div>
+            <div class="stat-info">
+              <div class="stat-label">CNHs Vencidas</div>
+              <div class="stat-value" id="dashCnhsVencidas">0</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon gold">⏳</div>
+            <div class="stat-info">
+              <div class="stat-label">A Vencer (30 dias)</div>
+              <div class="stat-value" id="dashCnhsVencer">0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GRÁFICO CNH -->
+        <div class="charts-grid" style="grid-template-columns: 1fr; margin-bottom: 20px;">
+          <div class="chart-card">
+            <h3>Distribuição por Categoria de CNH</h3>
+            <div class="chart-wrapper" style="height: 250px;">
+              <canvas id="graficoCatCnh"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="filtros-row">
+          <input type="text" id="buscaMotorista" class="form-control" placeholder="🔍 Buscar por nome ou CPF...">
+          <select id="filtroCatCnh" class="form-control" style="max-width: 200px;">
+            <option value="">Todas Categorias</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+            <option value="D">D</option>
+            <option value="E">E</option>
+            <option value="AB">AB</option>
+            <option value="AC">AC</option>
+            <option value="AD">AD</option>
+            <option value="AE">AE</option>
+          </select>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>CPF</th>
+                <th>CNH</th>
+                <th>Categoria</th>
+                <th>Validade</th>
+                <th>Telefone</th>
+                <th>Observações</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="corpoTabelaMotoristas"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script src="../assets/js/app.js"></script>
+</body>
+
+</html>

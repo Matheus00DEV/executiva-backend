@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const motoristaRoutes = require('./routes/motoristaRoutes');
 const pneuRoutes = require('./routes/pneuRoutes');
@@ -19,8 +20,11 @@ app.use(cors({
 app.use(express.json());
 
 // Servir arquivos estáticos do frontend (pasta raiz do projeto)
-app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
-app.use('/pages', express.static(path.join(__dirname, '..', 'pages')));
+const frontendRoot = fs.existsSync(path.join(__dirname, '..', 'pages'))
+  ? path.join(__dirname, '..')
+  : __dirname;
+app.use('/assets', express.static(path.join(frontendRoot, 'assets')));
+app.use('/pages', express.static(path.join(frontendRoot, 'pages')));
 
 // Rota raiz redireciona para login
 app.get('/', (req, res) => {
