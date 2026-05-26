@@ -7,6 +7,8 @@ const motoristaRoutes = require('./routes/motoristaRoutes');
 const pneuRoutes = require('./routes/pneuRoutes');
 const movimentacaoRoutes = require('./routes/movimentacaoRoutes');
 const veiculoRoutes = require('./routes/veiculoRoutes');
+const authRoutes = require('./routes/authRoutes');
+const usuarioRoutes = require('./routes/usuarioRoutes');
 
 const app = express();
 
@@ -26,6 +28,8 @@ app.get('/', (req, res) => {
 });
 
 // Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/motoristas', motoristaRoutes);
 app.use('/api/pneus', pneuRoutes);
 app.use('/api/movimentacoes', movimentacaoRoutes);
