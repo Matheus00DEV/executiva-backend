@@ -262,9 +262,10 @@ async function atualizarStatusUsuario(req, res) {
       UPDATE gestao_de_pneu
       SET
         status = $1,
-        aprovado_por = CASE WHEN $1 = 'aprovado' THEN $2 ELSE aprovado_por END,
-        aprovado_em = CASE WHEN $1 = 'aprovado' THEN NOW() ELSE aprovado_em END,
-        recusado_em = CASE WHEN $1 = 'recusado' THEN NOW() ELSE NULL END,
+        status = $1::varchar,
+        aprovado_por = CASE WHEN $1::varchar = 'aprovado' THEN $2 ELSE aprovado_por END,
+        aprovado_em = CASE WHEN $1::varchar = 'aprovado' THEN NOW() ELSE aprovado_em END,
+        recusado_em = CASE WHEN $1::varchar = 'recusado' THEN NOW() ELSE NULL END,
         atualizado_em = NOW()
       WHERE id = $3
       RETURNING id, nome, usuario, perfil, status, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
@@ -292,7 +293,8 @@ async function criarUsuarioDireto(req, res) {
     const insert = await db.query(`
       INSERT INTO gestao_de_pneu (
         nome, usuario, senha_hash, perfil, status, aprovado_por, aprovado_em, atualizado_em
-      ) VALUES ($1, $2, $3, $4, 'aprovado', $5, NOW(), NOW())
+      ) VALUES $1, $2, $3, $4, $5::varchar,
+        CASE WHEN $5::varchar = 'aprovado' THEN NOW() ELSE NULL END,
       RETURNING id, nome, usuario, perfil, status, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
     `, [nome, usuario, hashPassword(senha), perfil, req.usuario.id]);
 
