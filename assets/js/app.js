@@ -9,6 +9,7 @@ const KEYS = {
   MOVS: 'movimentacoes',
   VEICULOS: 'veiculos',
   MOTORISTAS: 'motoristas',
+  CONFERENCIAS: 'conferencias_pneus',
   RECAPAGENS: 'recapagens_custos',
   USER: 'usuarioLogado',
   USERS: 'usuariosSistema',
@@ -241,6 +242,39 @@ async function apiAtualizarMovimentacao(id, movimentacao) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Erro ao atualizar movimentacao no banco');
+  return data;
+}
+
+async function fetchConferencias(status = '') {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  const res = await fetch(`${API_URL}/conferencias${query}`, {
+    headers: authHeaders()
+  });
+  const data = await res.json().catch(() => []);
+  if (!res.ok) throw new Error(data.error || 'Erro ao buscar conferencias');
+  if (Array.isArray(data)) saveData(KEYS.CONFERENCIAS, data);
+  return Array.isArray(data) ? data : [];
+}
+
+async function apiCriarConferencia(conferencia) {
+  const res = await fetch(`${API_URL}/conferencias`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(conferencia)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Erro ao enviar conferencia');
+  return data;
+}
+
+async function apiAtualizarStatusConferencia(id, status, motivo = '') {
+  const res = await fetch(`${API_URL}/conferencias/${encodeURIComponent(id)}/status`, {
+    method: 'PUT',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ status, motivo })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Erro ao atualizar conferencia');
   return data;
 }
 
@@ -1799,36 +1833,159 @@ function excluirMovimentacao(id) {
   renderHistoricoMov();
 }
 
+let conferenciaItensMotorista = [];
+
 function initMotoristaApp(usuario) {
   if ($('driverUserName')) $('driverUserName').textContent = usuario.nome || usuario.usuario;
   if ($('dataMov') && !getVal('dataMov')) $('dataMov').value = new Date().toISOString().split('T')[0];
   if ($('numeroPneu')) $('numeroPneu').addEventListener('blur', () => preencherDadosAnteriores(getVal('numeroPneu')));
   ['lado', 'eixo', 'stepNumero'].forEach(id => { if ($(id)) $(id).addEventListener('change', atualizarLocal); });
-  if ($('btnSalvarMov')) $('btnSalvarMov').addEventListener('click', salvarMovimentacao);
+  if ($('btnAdicionarConferenciaItem')) $('btnAdicionarConferenciaItem').addEventListener('click', adicionarItemConferenciaMotorista);
+  if ($('btnSalvarMov')) $('btnSalvarMov').addEventListener('click', salvarConferenciaMotorista);
   popularSelectVeiculos();
   if (typeof toggleDriverMovFields === 'function') toggleDriverMovFields();
+  renderItensConferenciaMotorista();
   renderHistoricoMotorista();
 }
 
-function renderHistoricoMotorista() {
-  const lista = $('driverHistoryList');
+function itemConferenciaAtual() {
+  const tipo = getVal('tipoMov');
+  if (tipo === 'SemAlteracao') return null;
+
+  const item = {
+    id: gerarId(),
+    tipo,
+    numeroPneu: getVal('numeroPneu'),
+    pneuSaiu: getVal('pneuSaiu'),
+    pneuEntrou: getVal('pneuEntrou'),
+    eixo: getVal('eixo'),
+    lado: getVal('lado'),
+    stepNumero: getVal('stepNumero'),
+    localAtual: getVal('localAtual'),
+    observacao: getVal('observacao')
+  };
+
+  if (tipo === 'Troca') {
+    if (!item.pneuSaiu || !item.pneuEntrou) throw new Error('Informe o pneu que saiu e o pneu que entrou.');
+  } else if (!item.numeroPneu) {
+    throw new Error('Informe o NÂº de fogo do pneu.');
+  }
+
+  if (!item.localAtual) throw new Error('Informe eixo e lado para gerar a posicao.');
+  return item;
+}
+
+function limparCamposItemConferencia() {
+  ['numeroPneu', 'pneuSaiu', 'pneuEntrou', 'eixo', 'lado', 'stepNumero', 'localAtual'].forEach(id => setVal(id));
+  if (typeof toggleStepField === 'function') toggleStepField();
+}
+
+function renderItensConferenciaMotorista() {
+  const lista = $('conferenciaItensList');
   if (!lista) return;
-  const movs = getData(KEYS.MOVS).slice().reverse().slice(0, 5);
-  if (!movs.length) {
-    lista.innerHTML = '<p class="driver-empty">Nenhuma movimentacao registrada ainda.</p>';
+  if (!conferenciaItensMotorista.length) {
+    lista.innerHTML = '<p class="driver-empty">Nenhuma alteracao adicionada.</p>';
     return;
   }
-  lista.innerHTML = movs.map(m => {
-    const tipo = m.tipo_movimentacao || m.tipoMov || '-';
-    const pneu = m.id_pneu || m.numeroPneu || '-';
-    const data = m.data_movimentacao || m.dataMov || '';
-    const destino = m.veiculoAtual || m.localAtual || 'Estoque';
+
+  lista.innerHTML = conferenciaItensMotorista.map((item, index) => {
+    const titulo = item.tipo === 'Troca'
+      ? `Troca: ${escapeHtml(item.pneuSaiu)} -> ${escapeHtml(item.pneuEntrou)}`
+      : `${escapeHtml(tipoMovimentacaoLabel(item.tipo))}: ${escapeHtml(item.numeroPneu)}`;
     return `<article class="driver-history-item">
-      <strong>${pneu}</strong>
-      <span>${tipo} - ${data ? new Date(data + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</span>
-      <small>${destino}</small>
+      <strong>${titulo}</strong>
+      <span>${escapeHtml(item.localAtual || '-')}</span>
+      <button class="driver-mini-action" type="button" onclick="removerItemConferenciaMotorista(${index})">Remover</button>
     </article>`;
   }).join('');
+}
+
+function adicionarItemConferenciaMotorista() {
+  try {
+    const item = itemConferenciaAtual();
+    if (!item) return;
+    conferenciaItensMotorista.push(item);
+    renderItensConferenciaMotorista();
+    limparCamposItemConferencia();
+    notificar('Alteracao adicionada na conferencia.', 'success');
+  } catch (error) {
+    notificar(error.message, 'error');
+  }
+}
+
+function removerItemConferenciaMotorista(index) {
+  conferenciaItensMotorista.splice(index, 1);
+  renderItensConferenciaMotorista();
+}
+
+async function salvarConferenciaMotorista(event) {
+  const botao = event?.currentTarget || $('btnSalvarMov');
+  const tipo = getVal('tipoMov');
+  const dataConferencia = getVal('dataMov');
+  const veiculo = getVal('veiculoAtual');
+  const kmVeiculo = Number(getVal('kmVeiculo')) || 0;
+
+  if (!dataConferencia) return notificar('Informe a data da conferencia.', 'error');
+  if (!veiculo) return notificar('Selecione o veiculo.', 'error');
+  if (kmVeiculo <= 0) return notificar('Informe o KM atual do veiculo.', 'error');
+
+  if (tipo !== 'SemAlteracao' && !conferenciaItensMotorista.length) {
+    try {
+      const item = itemConferenciaAtual();
+      if (item) conferenciaItensMotorista.push(item);
+    } catch (error) {
+      return notificar(error.message, 'error');
+    }
+  }
+
+  if (!setBotaoCarregando(botao, true, 'Enviando...')) return;
+  try {
+    await apiCriarConferencia({
+      dataConferencia,
+      veiculo,
+      kmVeiculo,
+      tipo,
+      itens: tipo === 'SemAlteracao' ? [] : conferenciaItensMotorista,
+      observacao: getVal('observacao')
+    });
+    notificar('Conferencia enviada para aprovacao.', 'success');
+    conferenciaItensMotorista = [];
+    renderItensConferenciaMotorista();
+    ['numeroPneu', 'pneuSaiu', 'pneuEntrou', 'eixo', 'lado', 'stepNumero', 'localAtual', 'observacao'].forEach(id => setVal(id));
+    if ($('tipoMov')) $('tipoMov').value = 'SemAlteracao';
+    if ($('dataMov')) $('dataMov').value = new Date().toISOString().split('T')[0];
+    if (typeof toggleDriverMovFields === 'function') toggleDriverMovFields();
+    await renderHistoricoMotorista();
+  } catch (error) {
+    notificar(error.message || 'Erro ao enviar conferencia.', 'error');
+  } finally {
+    setBotaoCarregando(botao, false);
+    if (botao) botao.textContent = 'Enviar conferencia';
+  }
+}
+
+async function renderHistoricoMotorista() {
+  const lista = $('driverHistoryList');
+  if (!lista) return;
+  lista.innerHTML = '<p class="driver-empty">Carregando conferencias...</p>';
+  try {
+    const conferencias = (await fetchConferencias()).slice(0, 5);
+    if (!conferencias.length) {
+      lista.innerHTML = '<p class="driver-empty">Nenhuma conferencia enviada ainda.</p>';
+      return;
+    }
+    lista.innerHTML = conferencias.map(c => {
+      const qtd = Array.isArray(c.itens) ? c.itens.length : 0;
+      const statusClass = c.status === 'aprovado' ? 'badge-success' : c.status === 'recusado' ? 'badge-danger' : 'badge-warning';
+      return `<article class="driver-history-item">
+        <strong>${escapeHtml(c.veiculo || '-')} - ${kmFormatado(c.kmVeiculo)}</strong>
+        <span>${formatarDataDashboard(c.dataConferencia)} - ${qtd ? `${qtd} alteracao(oes)` : 'sem alteracao'}</span>
+        <small><span class="badge ${statusClass}">${escapeHtml(c.status || 'pendente')}</span></small>
+      </article>`;
+    }).join('');
+  } catch (error) {
+    lista.innerHTML = `<p class="driver-empty">${escapeHtml(error.message)}</p>`;
+  }
 }
 
 function escapeHtml(valor) {
@@ -2419,10 +2576,17 @@ function perfilLabelSistema(perfil) {
   return mapa[String(perfil || '').toLowerCase()] || 'Assistente';
 }
 
+function usuarioPodeGerenciarConferencias(usuario) {
+  return perfilUsuarioNormalizado(usuario?.perfil) !== 'motorista';
+}
+
 function initConfiguracoes(usuario) {
   renderMeuAcesso(usuario);
   document.querySelectorAll('.admin-settings-only').forEach(secao => {
     secao.style.display = usuarioEhAdmin(usuario) ? '' : 'none';
+  });
+  document.querySelectorAll('.staff-settings-only').forEach(secao => {
+    secao.style.display = usuarioPodeGerenciarConferencias(usuario) ? '' : 'none';
   });
 
   if (usuarioEhAdmin(usuario)) {
@@ -2433,6 +2597,8 @@ function initConfiguracoes(usuario) {
       .then(usuarios => renderMeuAcesso(usuarios[0] || usuario))
       .catch(() => renderMeuAcesso(usuario));
   }
+
+  if (usuarioPodeGerenciarConferencias(usuario)) renderConferenciasMotoristas();
 }
 
 async function listarUsuariosAcesso(status = '') {
@@ -2657,6 +2823,165 @@ async function alterarPerfilUsuarioAcesso(id, perfil) {
     await renderUsuariosAcesso();
   } catch (error) {
     notificar(error.message, 'error');
+  }
+}
+
+function resumoItensConferencia(conferencia) {
+  const itens = Array.isArray(conferencia.itens) ? conferencia.itens : [];
+  if (!itens.length) return 'Sem alteracao';
+  return itens.map(item => {
+    if (item.tipo === 'Troca') return `Troca ${item.pneuSaiu || '-'} -> ${item.pneuEntrou || '-'} (${item.localAtual || '-'})`;
+    return `${tipoMovimentacaoLabel(item.tipo)} ${item.numeroPneu || '-'} (${item.localAtual || '-'})`;
+  }).join('<br>');
+}
+
+async function renderConferenciasMotoristas() {
+  const tbody = $('tabelaConferenciasMotoristas');
+  const contador = $('totalConferenciasPendentes');
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="6" class="text-center">Carregando conferencias...</td></tr>';
+  try {
+    const conferencias = await fetchConferencias('pendente');
+    if (contador) contador.textContent = conferencias.length;
+    tbody.innerHTML = '';
+
+    if (!conferencias.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center">Nenhuma conferencia pendente.</td></tr>';
+      return;
+    }
+
+    conferencias.forEach(c => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${escapeHtml(c.motoristaNome || '-')}</strong><small class="cell-sub">${escapeHtml(c.motoristaUsuario || '-')}</small></td>
+        <td><strong>${escapeHtml(c.veiculo || '-')}</strong><small class="cell-sub">${escapeHtml(kmFormatado(c.kmVeiculo))}</small></td>
+        <td>${formatarDataDashboard(c.dataConferencia)}</td>
+        <td>${resumoItensConferencia(c)}</td>
+        <td><span class="badge badge-warning">Pendente</span></td>
+        <td class="table-actions">
+          <button class="btn btn-primary btn-sm" onclick="aprovarConferenciaMotorista(${Number(c.id)})">Aprovar</button>
+          <button class="btn btn-secondary btn-sm" onclick="recusarConferenciaMotorista(${Number(c.id)})">Recusar</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (error) {
+    if (contador) contador.textContent = '0';
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center">${escapeHtml(error.message)}</td></tr>`;
+  }
+}
+
+function movimentosDaConferencia(conferencia) {
+  const itens = Array.isArray(conferencia.itens) ? conferencia.itens : [];
+  const dataMov = conferencia.dataConferencia;
+  const veiculo = conferencia.veiculo;
+  const km = asNumber(conferencia.kmVeiculo);
+
+  const base = {
+    data_movimentacao: dataMov,
+    dataMov,
+    veiculoAtual: veiculo,
+    placa_veiculo: veiculo,
+    km_entrada: 0,
+    km_saida: 0,
+    observacao: `Conferencia motorista #${conferencia.id}${conferencia.observacao ? ` - ${conferencia.observacao}` : ''}`
+  };
+
+  const movimentos = [];
+  itens.forEach(item => {
+    const local = item.localAtual || '';
+    if (item.tipo === 'Troca') {
+      if (item.pneuSaiu) {
+        movimentos.push({
+          ...base,
+          id: gerarId(),
+          numeroPneu: item.pneuSaiu,
+          id_pneu: item.pneuSaiu,
+          tipo_movimentacao: 'Retirada',
+          tipoMov: 'Retirada',
+          veiculoAnterior: veiculo,
+          localAnterior: local,
+          veiculoAtual: '',
+          placa_veiculo: '',
+          localAtual: 'Estoque',
+          posicao: 'Estoque',
+          km_saida: km
+        });
+      }
+      if (item.pneuEntrou) {
+        movimentos.push({
+          ...base,
+          id: gerarId(),
+          numeroPneu: item.pneuEntrou,
+          id_pneu: item.pneuEntrou,
+          tipo_movimentacao: 'Instalacao',
+          tipoMov: 'Instalacao',
+          veiculoAnterior: 'Estoque',
+          localAnterior: 'Estoque',
+          localAtual: local,
+          posicao: local,
+          km_entrada: km
+        });
+      }
+      return;
+    }
+
+    const numeroPneu = item.numeroPneu || item.pneuEntrou || item.pneuSaiu || '';
+    if (!numeroPneu) return;
+
+    const tipoMov = item.tipo === 'Baixa' ? 'Baixa' :
+      item.tipo === 'Retirada' ? 'Retirada' :
+        item.tipo === 'Atualizacao' ? 'Atualizacao' : 'Instalacao';
+
+    movimentos.push({
+      ...base,
+      id: gerarId(),
+      numeroPneu,
+      id_pneu: numeroPneu,
+      tipo_movimentacao: tipoMov,
+      tipoMov,
+      veiculoAnterior: ['Retirada', 'Baixa'].includes(tipoMov) ? veiculo : 'Estoque',
+      localAnterior: ['Retirada', 'Baixa'].includes(tipoMov) ? local : 'Estoque',
+      veiculoAtual: ['Retirada', 'Baixa'].includes(tipoMov) ? '' : veiculo,
+      placa_veiculo: ['Retirada', 'Baixa'].includes(tipoMov) ? '' : veiculo,
+      localAtual: tipoMov === 'Baixa' ? '-' : (tipoMov === 'Retirada' ? 'Estoque' : local),
+      posicao: tipoMov === 'Baixa' ? '-' : (tipoMov === 'Retirada' ? 'Estoque' : local),
+      km_entrada: tipoMov === 'Instalacao' ? km : 0,
+      km_saida: ['Retirada', 'Atualizacao', 'Baixa'].includes(tipoMov) ? km : 0
+    });
+  });
+
+  return movimentos;
+}
+
+async function aprovarConferenciaMotorista(id) {
+  const conferencia = getData(KEYS.CONFERENCIAS).find(c => Number(c.id) === Number(id));
+  if (!conferencia) return notificar('Conferencia nao encontrada.', 'error');
+  if (!confirm('Aprovar esta conferencia e gerar as movimentacoes oficiais?')) return;
+
+  try {
+    const movimentos = movimentosDaConferencia(conferencia);
+    for (const mov of movimentos) {
+      await apiSalvarMovimentacao(mov);
+    }
+    await apiAtualizarStatusConferencia(id, 'aprovado');
+    await sincronizarDadosBanco(['pneus', 'movimentacoes']);
+    notificar(movimentos.length ? 'Conferencia aprovada e movimentacoes geradas.' : 'Conferencia sem alteracao aprovada.', 'success');
+    await renderConferenciasMotoristas();
+  } catch (error) {
+    notificar(error.message || 'Erro ao aprovar conferencia.', 'error');
+  }
+}
+
+async function recusarConferenciaMotorista(id) {
+  const motivo = prompt('Motivo da recusa ou ajuste solicitado:') || '';
+  try {
+    await apiAtualizarStatusConferencia(id, 'recusado', motivo);
+    notificar('Conferencia recusada.', 'success');
+    await renderConferenciasMotoristas();
+  } catch (error) {
+    notificar(error.message || 'Erro ao recusar conferencia.', 'error');
   }
 }
 

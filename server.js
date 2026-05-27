@@ -10,6 +10,7 @@ const movimentacaoRoutes = require('./routes/movimentacaoRoutes');
 const veiculoRoutes = require('./routes/veiculoRoutes');
 const authRoutes = require('./routes/authRoutes');
 const usuarioRoutes = require('./routes/usuarioRoutes');
+const conferenciaRoutes = require('./routes/conferenciaRoutes');
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/api/motoristas', motoristaRoutes);
 app.use('/api/pneus', pneuRoutes);
 app.use('/api/movimentacoes', movimentacaoRoutes);
 app.use('/api/veiculos', veiculoRoutes);
+app.use('/api/conferencias', conferenciaRoutes);
 
 // Tratamento de Rota não encontrada (404)
 app.use((req, res) => {

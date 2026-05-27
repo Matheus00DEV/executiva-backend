@@ -13,7 +13,7 @@
     <header class="driver-header">
       <div>
         <span class="driver-kicker">Executiva</span>
-        <h1>Movimentacao</h1>
+        <h1>Conferencia de pneus</h1>
       </div>
       <button class="driver-logout" type="button" onclick="fazerLogout()">Sair</button>
     </header>
@@ -25,24 +25,31 @@
 
     <section class="driver-card">
       <div class="driver-card-title">
-        <h2>Registrar pneu</h2>
-        <p>Preencha somente os dados da movimentacao feita no veiculo.</p>
+        <h2>Enviar conferencia</h2>
+        <p>Informe o KM e marque se houve alteracao nos pneus do veiculo.</p>
       </div>
 
       <div class="driver-form">
-        <div class="form-group">
-          <label>Nº Fogo do Pneu *</label>
-          <input type="text" id="numeroPneu" class="form-control" inputmode="numeric" placeholder="Ex: 123456">
-        </div>
-
         <div class="form-group">
           <label>Data *</label>
           <input type="date" id="dataMov" class="form-control">
         </div>
 
         <div class="form-group">
-          <label>Tipo *</label>
+          <label>Veiculo *</label>
+          <select id="veiculoAtual" class="form-control select-veiculos"></select>
+        </div>
+
+        <div class="form-group">
+          <label>KM do veiculo *</label>
+          <input type="number" id="kmVeiculo" class="form-control" inputmode="numeric" placeholder="KM atual">
+        </div>
+
+        <div class="form-group">
+          <label>Situacao *</label>
           <select id="tipoMov" class="form-control" onchange="toggleDriverMovFields()">
+            <option value="SemAlteracao">Sem alteracao</option>
+            <option value="Troca">Troca de pneu</option>
             <option value="Instalacao">Instalacao</option>
             <option value="Retirada">Retirada</option>
             <option value="Atualizacao">Atualizacao</option>
@@ -53,21 +60,25 @@
         <input type="hidden" id="veiculoAnterior" value="Estoque">
         <input type="hidden" id="localAnterior" value="Estoque">
 
-        <div class="form-group driver-destino">
-          <label>Tipo de veiculo</label>
-          <select id="tipoVeiculo" class="form-control">
-            <option value="Cavalo">Cavalo</option>
-            <option value="Carreta">Carreta</option>
-            <option value="Reboque">Reboque</option>
-          </select>
+        <input type="hidden" id="tipoVeiculo" value="Cavalo">
+
+        <div class="form-group driver-item-field driver-single-pneu">
+          <label>Nº Fogo do Pneu *</label>
+          <input type="text" id="numeroPneu" class="form-control" inputmode="numeric" placeholder="Ex: 123456">
         </div>
 
-        <div class="form-group driver-destino">
-          <label>Veiculo</label>
-          <select id="veiculoAtual" class="form-control select-veiculos"></select>
+        <div class="driver-position-grid driver-item-field driver-troca-field">
+          <div class="form-group">
+            <label>Pneu que saiu</label>
+            <input type="text" id="pneuSaiu" class="form-control" inputmode="numeric" placeholder="Fogo retirado">
+          </div>
+          <div class="form-group">
+            <label>Pneu que entrou</label>
+            <input type="text" id="pneuEntrou" class="form-control" inputmode="numeric" placeholder="Fogo colocado">
+          </div>
         </div>
 
-        <div class="driver-position-grid driver-destino">
+        <div class="driver-position-grid driver-item-field driver-posicao-field">
           <div class="form-group">
             <label>Eixo</label>
             <select id="eixo" class="form-control" onchange="toggleStepField()">
@@ -104,28 +115,26 @@
           </select>
         </div>
 
-        <div class="form-group driver-destino">
-          <label>Local atual</label>
+        <div class="form-group driver-item-field driver-posicao-field">
+          <label>Posicao</label>
           <input type="text" id="localAtual" class="form-control" readonly>
         </div>
 
         <div class="form-group">
-          <label>KM do veiculo</label>
-          <input type="number" id="kmVeiculo" class="form-control" inputmode="numeric" placeholder="KM atual">
-        </div>
-
-        <div class="form-group">
           <label>Observacao</label>
-          <textarea id="observacao" class="form-control" rows="3" placeholder="Ex: troca feita no patio"></textarea>
+          <textarea id="observacao" class="form-control" rows="3" placeholder="Ex: troca feita em borracharia"></textarea>
         </div>
 
-        <button id="btnSalvarMov" class="driver-submit" type="button">Salvar movimentacao</button>
+        <button id="btnAdicionarConferenciaItem" class="driver-secondary" type="button">Adicionar alteracao</button>
+        <div id="conferenciaItensList" class="driver-conference-list"></div>
+
+        <button id="btnSalvarMov" class="driver-submit" type="button">Enviar conferencia</button>
       </div>
     </section>
 
     <section class="driver-card driver-history">
       <div class="driver-card-title">
-        <h2>Ultimos lancamentos</h2>
+        <h2>Ultimas conferencias</h2>
       </div>
       <div id="driverHistoryList" class="driver-history-list"></div>
     </section>
@@ -134,12 +143,13 @@
   <script>
     function toggleDriverMovFields() {
       const tipo = document.getElementById('tipoMov').value;
-      const usaDestino = tipo === 'Instalacao' || tipo === 'Atualizacao';
-      document.querySelectorAll('.driver-destino').forEach(el => el.style.display = usaDestino ? '' : 'none');
-      if (!usaDestino) {
-        document.getElementById('veiculoAtual').value = '';
-        document.getElementById('localAtual').value = tipo === 'Baixa' ? '-' : 'Estoque';
-      }
+      const semAlteracao = tipo === 'SemAlteracao';
+      const troca = tipo === 'Troca';
+      document.querySelectorAll('.driver-item-field').forEach(el => el.style.display = semAlteracao ? 'none' : '');
+      document.querySelectorAll('.driver-troca-field').forEach(el => el.style.display = troca ? '' : 'none');
+      document.querySelectorAll('.driver-single-pneu').forEach(el => el.style.display = (!semAlteracao && !troca) ? '' : 'none');
+      document.getElementById('btnAdicionarConferenciaItem').style.display = semAlteracao ? 'none' : '';
+      if (semAlteracao) document.getElementById('localAtual').value = '';
     }
   </script>
   <script src="../assets/js/app.js"></script>
