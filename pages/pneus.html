@@ -30,6 +30,7 @@
       <div class="tabs">
         <button class="tab-btn active" data-target="tab-cadastro">➕ Cadastrar Pneu</button>
         <button class="tab-btn" data-target="tab-lista">📋 Pneus Cadastrados</button>
+        <button class="tab-btn" data-target="tab-detalhe">Raio-X do Pneu</button>
       </div>
 
       <!-- ABA CADASTRO -->
@@ -50,8 +51,10 @@
           <div class="form-group"><label>Data da Compra *</label><input type="date" id="dataCompra" class="form-control"></div>
           <div class="form-group"><label>Valor (R$)</label><input type="number" id="valorCompra" class="form-control" step="0.01" placeholder="0.00"></div>
           <div class="form-group"><label>KM na Compra</label><input type="number" id="kmCompra" class="form-control" placeholder="0"></div>
-          <div class="form-group"><label>Profundidade (mm)</label><input type="number" id="profundidade" class="form-control" step="0.1" placeholder="18.0"></div>
+          <div class="form-group"><label>Fornecedor</label><input type="text" id="fornecedorCompra" class="form-control" placeholder="Loja / fornecedor"></div>
+          <div class="form-group"><label>Nota Fiscal</label><input type="text" id="notaFiscalCompra" class="form-control" placeholder="NF da compra"></div>
           <div class="form-group"><label>DOT</label><input type="text" id="dot" class="form-control" placeholder="EX: 2024"></div>
+          <div class="form-group" style="grid-column:span 2;"><label>Observacao da compra</label><textarea id="observacaoCompra" class="form-control" rows="2" placeholder="Dados da nota, pedido ou condicao de compra"></textarea></div>
           <div class="form-group"><label>Série</label><input type="text" id="serie" class="form-control" placeholder="Nº de série"></div>
         </div>
         <div class="form-actions">
@@ -73,12 +76,29 @@
             <option value="Recapado">Recapado</option>
           </select>
           <input type="text" id="filtroVeiculo" class="form-control" placeholder="Filtrar por veículo...">
+          <select id="filtroPerformance" class="form-control">
+            <option value="">Todas as situações</option>
+            <option value="sem-km">Sem KM calculado</option>
+            <option value="alto-cpk">CPK acima da média</option>
+            <option value="alto-km">KM acima da média</option>
+            <option value="recapado">Com recapagem/conserto</option>
+          </select>
         </div>
         <div class="table-container">
           <table>
-            <thead><tr><th>Nº Pneu</th><th>Marca</th><th>Modelo</th><th>Medida</th><th>Status</th><th>Veículo</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Nº Pneu</th><th>Marca</th><th>Modelo</th><th>Medida</th><th>Status</th><th>Veículo</th><th>KM</th><th>Custo</th><th>CPK</th><th>Situação</th><th>Ações</th></tr></thead>
             <tbody id="corpoTabelaPneus"></tbody>
           </table>
+        </div>
+      </div>
+
+      <div id="tab-detalhe" class="tab-content">
+        <div class="detail-search-row">
+          <input type="text" id="detalhePneuBusca" class="form-control" placeholder="Digite o fogo do pneu para consultar...">
+          <button type="button" id="btnBuscarDetalhePneu" class="btn btn-primary">Buscar pneu</button>
+        </div>
+        <div id="pneuDetalhePanel" class="pneu-detail-panel">
+          <div class="empty-state">Selecione um pneu na lista ou pesquise pelo fogo.</div>
         </div>
       </div>
     </div>

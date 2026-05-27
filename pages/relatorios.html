@@ -285,6 +285,7 @@
       <button class="rel-tab-btn" data-rel="rel-pneu">🛞 Por Pneu</button>
       <button class="rel-tab-btn" data-rel="rel-caminhao">🚚 Por Veículo</button>
       <button class="rel-tab-btn" data-rel="rel-cpk">💹 CPK Detalhado</button>
+      <button class="rel-tab-btn" data-rel="rel-custos">Compras e Recapagens</button>
     </div>
 
     <!-- ======= ABA GERAL ======= -->
@@ -401,7 +402,6 @@
                 <th>Qtd Pneus Ativos</th>
                 <th>Custo Total de Pneus</th>
                 <th>KM Médio Rodado</th>
-                <th>CPK Médio</th>
               </tr>
             </thead>
             <tbody id="mot-tabela"></tbody>
@@ -483,7 +483,7 @@
               <th>KM Rodado</th>
               <th>CPK</th>
               <th>Recapagens</th>
-              <th>Profund. Atual</th>
+              <th>Avaliação</th>
             </tr>
           </thead>
           <tbody id="p-tabelaPneus"></tbody>
@@ -514,10 +514,13 @@
             <thead>
               <tr>
                 <th>Placa / Veículo</th>
+                <th>Motorista</th>
                 <th>Tipo</th>
                 <th>Pneus Ativos</th>
-                <th>Marcas em Uso</th>
-                <th>Custo Total Pneus</th>
+                <th>Custo Total</th>
+                <th>KM acumulado</th>
+                <th>Custo/KM</th>
+                <th>Alertas</th>
                 <th>CPK Médio</th>
               </tr>
             </thead>
@@ -536,7 +539,7 @@
                 <th>Marca</th>
                 <th>Posição</th>
                 <th>Status</th>
-                <th>Profund.</th>
+                <th>KM Rodado</th>
                 <th>Valor</th>
               </tr>
             </thead>
@@ -608,6 +611,57 @@
       </div>
     </div>
 
+    <div id="rel-custos" class="rel-section">
+      <div class="kpi-row">
+        <div class="kpi-box verde">
+          <div class="kpi-label">Compras</div>
+          <div class="kpi-value kpi-value-long" id="custos-totalCompras">R$ 0</div>
+        </div>
+        <div class="kpi-box dourado">
+          <div class="kpi-label">Recapagens/Consertos</div>
+          <div class="kpi-value kpi-value-long" id="custos-totalRecapagens">R$ 0</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Custo Total</div>
+          <div class="kpi-value kpi-value-long" id="custos-totalGeral">R$ 0</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Pneus com NF</div>
+          <div class="kpi-value" id="custos-pneusComNf">0</div>
+        </div>
+      </div>
+
+      <div class="chart-row">
+        <div class="chart-card">
+          <h3>Compras por fornecedor</h3>
+          <div class="chart-wrapper"><canvas id="custos-graficoFornecedores"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Recapagens por fornecedor</h3>
+          <div class="chart-wrapper"><canvas id="custos-graficoRecapFornecedores"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Compras cadastradas</div>
+        <div class="table-container">
+          <table>
+            <thead><tr><th>Data</th><th>NF</th><th>Fornecedor</th><th>Fogo</th><th>Marca/Modelo</th><th>Valor</th><th>Status</th></tr></thead>
+            <tbody id="custos-tabelaCompras"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px;">
+        <div class="section-title">Recapagens e consertos</div>
+        <div class="table-container">
+          <table>
+            <thead><tr><th>Data</th><th>Fogo</th><th>Fornecedor</th><th>Servico</th><th>Valor</th><th>Veiculo</th><th>Obs.</th></tr></thead>
+            <tbody id="custos-tabelaRecapagens"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script src="../assets/js/chart.umd.js"></script>

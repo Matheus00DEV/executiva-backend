@@ -264,7 +264,7 @@ function renderRelPneu(pneus) {
       <td>${kmFmt(p.kmRodadoTotal)}</td>
       <td>${badgeCpk(cpk)}</td>
       <td>${numR(p.quantidadeRecapagens) || (p.recapagens || []).length}</td>
-      <td>${p.profundidadeAtual ? p.profundidadeAtual + ' mm' : '-'}</td>`;
+      <td>${cpk !== null ? (cpk <= 0.05 ? 'Ótimo' : cpk <= 0.10 ? 'Regular' : 'Alto custo') : 'Sem KM'}</td>`;
     tb.appendChild(tr);
   });
   if (filtrados.length > exibidos.length) {
@@ -340,9 +340,10 @@ function renderRelCaminhao(pneus, veiculos) {
   const map = {};
   pneus.filter(p => p.statusAtual === 'Rodando' && p.veiculoAtual && p.veiculoAtual !== '-').forEach(p => {
     const v = p.veiculoAtual;
-    if (!map[v]) map[v] = { placa: v, pneus: [], custo: 0, marcas: new Set() };
+    if (!map[v]) map[v] = { placa: v, pneus: [], custo: 0, km: 0, marcas: new Set() };
     map[v].pneus.push(p);
     map[v].custo += custoPneuR(p);
+    map[v].km += numR(p.kmRodadoTotal);
     map[v].marcas.add(p.marca);
   });
 
@@ -354,6 +355,23 @@ function renderRelCaminhao(pneus, veiculos) {
     tb.innerHTML = '';
     if (!lista.length) { tb.innerHTML = '<tr><td colspan="6" class="no-data">Sem veículos com pneus ativos.</td></tr>'; }
     else lista.forEach(v => {
+      const infoVeiculoNovo = veiculos.find(x => x.placa === v.placa);
+      const custoKmNovo = v.km > 0 ? v.custo / v.km : null;
+      const alertasNovo = [];
+      if (v.pneus.some(p => numR(p.kmRodadoTotal) <= 0)) alertasNovo.push('sem KM');
+      if (v.pneus.some(p => calcCpk(p) !== null && calcCpk(p) > 0.1)) alertasNovo.push('CPK alto');
+      const trNovo = document.createElement('tr');
+      trNovo.innerHTML = `<td><strong>${v.placa}</strong></td>
+        <td>${infoVeiculoNovo?.motorista || '-'}</td>
+        <td>${infoVeiculoNovo?.tipo || '-'}</td>
+        <td><span class="badge badge-success">${v.pneus.length}</span></td>
+        <td>${moedaR(v.custo)}</td>
+        <td>${kmFmt(v.km)}</td>
+        <td>${custoKmNovo ? cpkFmtR(custoKmNovo) : '-'}</td>
+        <td>${alertasNovo.length ? alertasNovo.join(', ') : 'OK'}</td>
+        <td>${[...v.marcas].join(', ') || '-'}</td>`;
+      tb.appendChild(trNovo);
+      return;
       const infoVeiculo = veiculos.find(x => x.placa === v.placa);
       const cpkPneus = v.pneus.filter(p => numR(p.kmRodadoTotal) > 0 && numR(p.valorCompra) > 0);
       const cpkMedio = cpkPneus.length ? cpkPneus.reduce((a, p) => a + calcCpk(p), 0) / cpkPneus.length : null;
@@ -393,7 +411,7 @@ function renderPneusVeiculo(pneus, placa) {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td><strong>${p.numPneu}</strong></td><td>${p.marca}</td>
       <td>${p.localAtual || '-'}</td><td><span class="badge ${bc}">${p.statusAtual}</span></td>
-      <td>${p.profundidadeAtual ? p.profundidadeAtual + ' mm' : '-'}</td><td>${moedaR(p.valorCompra)}</td>`;
+      <td>${kmFmt(p.kmRodadoTotal)}</td><td>${moedaR(p.valorCompra)}</td>`;
     tb.appendChild(tr);
   });
 }
@@ -556,6 +574,72 @@ function renderRelMovimentacoesPeriodo(movs) {
 }
 
 // ---- INIT RELATÓRIOS ----
+function renderRelCustos(pneus, movs) {
+  const compras = pneus.filter(p => numR(p.valorCompra) > 0)
+    .sort((a, b) => String(b.dataCompra || '').localeCompare(String(a.dataCompra || '')));
+  const recapagens = movs.filter(m => tipoMovR(m) === 'Recapagem')
+    .sort((a, b) => String(dataMovR(b)).localeCompare(String(dataMovR(a))));
+  const totalCompras = compras.reduce((a, p) => a + numR(p.valorCompra), 0);
+  const totalRecapagens = recapagens.reduce((a, m) => a + numR(m.valorRecape), 0);
+  const pneusComNf = compras.filter(p => p.notaFiscalCompra).length;
+
+  const set = (id, valor) => { if ($r(id)) $r(id).textContent = valor; };
+  set('custos-totalCompras', moedaR(totalCompras));
+  set('custos-totalRecapagens', moedaR(totalRecapagens));
+  set('custos-totalGeral', moedaR(totalCompras + totalRecapagens));
+  set('custos-pneusComNf', pneusComNf.toLocaleString('pt-BR'));
+
+  const tbCompras = $r('custos-tabelaCompras');
+  if (tbCompras) {
+    tbCompras.innerHTML = '';
+    if (!compras.length) tbCompras.innerHTML = '<tr><td colspan="7" class="no-data">Sem compras cadastradas.</td></tr>';
+    else compras.slice(0, MAX_REL_ROWS).forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${p.dataCompra || '-'}</td>
+        <td>${p.notaFiscalCompra || '-'}</td>
+        <td>${p.fornecedorCompra || '-'}</td>
+        <td><strong>${p.numPneu}</strong></td>
+        <td>${p.marca || '-'} / ${p.modelo || '-'}</td>
+        <td>${moedaR(p.valorCompra)}</td>
+        <td>${p.statusAtual || '-'}</td>`;
+      tbCompras.appendChild(tr);
+    });
+  }
+
+  const tbRecap = $r('custos-tabelaRecapagens');
+  if (tbRecap) {
+    tbRecap.innerHTML = '';
+    if (!recapagens.length) tbRecap.innerHTML = '<tr><td colspan="7" class="no-data">Sem recapagens ou consertos registrados.</td></tr>';
+    else recapagens.slice(0, MAX_REL_ROWS).forEach(m => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${dataMovR(m) || '-'}</td>
+        <td><strong>${m.numeroPneu || m.id_pneu || '-'}</strong></td>
+        <td>${m.fornecedorRecape || '-'}</td>
+        <td>${m.tipoServicoRecape || 'Recapagem'}</td>
+        <td>${moedaR(m.valorRecape)}</td>
+        <td>${m.veiculoAtual || m.placa_veiculo || '-'}</td>
+        <td>${m.observacao || ''}</td>`;
+      tbRecap.appendChild(tr);
+    });
+  }
+
+  const porFornecedor = {};
+  compras.forEach(p => {
+    const nome = p.fornecedorCompra || 'Nao informado';
+    porFornecedor[nome] = (porFornecedor[nome] || 0) + numR(p.valorCompra);
+  });
+  const arrFornecedor = Object.entries(porFornecedor).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  grafBar('custos-graficoFornecedores', arrFornecedor.map(([nome]) => nome), arrFornecedor.map(([, valor]) => valor), 'rgba(26,122,58,0.75)', 'Compras');
+
+  const porRecapFornecedor = {};
+  recapagens.forEach(m => {
+    const nome = m.fornecedorRecape || 'Nao informado';
+    porRecapFornecedor[nome] = (porRecapFornecedor[nome] || 0) + numR(m.valorRecape);
+  });
+  const arrRecapFornecedor = Object.entries(porRecapFornecedor).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  grafBar('custos-graficoRecapFornecedores', arrRecapFornecedor.map(([nome]) => nome), arrRecapFornecedor.map(([, valor]) => valor), 'rgba(212,160,23,0.75)', 'Recapagens');
+}
+
 function initRelatorios() {
   // Limpa cache para garantir dados frescos
   clearRecapCache();
@@ -579,6 +663,7 @@ function initRelatorios() {
       if (target === 'rel-caminhao') renderRelCaminhao(pneus, veiculos);
       if (target === 'rel-cpk') renderRelCpk(pneus);
       if (target === 'rel-motorista') renderRelMotorista(pneus, veiculos);
+      if (target === 'rel-custos') renderRelCustos(pneus, movs);
     });
   });
 
@@ -595,6 +680,7 @@ function initRelatorios() {
 
   // Renderiza geral inicialmente
   renderRelGeral(pneus, movs);
+  renderRelCustos(pneus, movs);
 }
 
 // Aguarda DOM e Chart.js

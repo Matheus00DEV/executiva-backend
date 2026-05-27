@@ -66,6 +66,9 @@ function normalizarPneu(p) {
     dataCompra: dataIsoCurta(p.dataCompra),
     valorCompra: asNumber(p.valorCompra),
     kmCompra: asNumber(p.kmCompra),
+    fornecedorCompra: String(p.fornecedorCompra || p.FornecedorCompra || ''),
+    notaFiscalCompra: String(p.notaFiscalCompra || p.NotaFiscalCompra || ''),
+    observacaoCompra: String(p.observacaoCompra || p.ObsCompra || ''),
     profundidadeAtual: asNumber(p.profundidadeAtual),
     profundidadeInicial: asNumber(p.profundidadeInicial || p.profundidadeAtual),
     kmRodadoTotal: asNumber(p.kmRodadoTotal),
@@ -973,6 +976,30 @@ function renderDiagrama(veiculo) {
       </div>`;
   }).join('');
 
+  const posicoesPrevistas = estruturaEixos.flatMap(eixo => [...eixo.top, ...eixo.bottom].map(pos => ({
+    eixo: eixo.nome,
+    codigo: pos.codigo,
+    local: pos.nomeLocal || `${eixo.nome} - ${pos.codigo}`
+  })));
+  const posicoesComPneu = posicoesPrevistas.map(pos => ({ ...pos, pneu: pneuPorPosicao(pos.eixo, pos.codigo, pos.local) }));
+  const pneusVinculados = new Set(posicoesComPneu.filter(item => item.pneu).map(item => normalizarChave(item.pneu.numPneu)));
+  const pneusSemPosicao = pneusVeiculo.filter(p => !pneusVinculados.has(normalizarChave(p.numPneu)));
+  const vagas = posicoesComPneu.filter(item => !item.pneu).length;
+  const cpkValidos = pneusVeiculo.map(p => ({ pneu: p, cpk: cpkPneu(p) })).filter(item => item.cpk !== null);
+  const cpkMedio = cpkValidos.length ? cpkValidos.reduce((a, item) => a + item.cpk, 0) / cpkValidos.length : null;
+  const linhasMapa = [...posicoesComPneu, ...pneusSemPosicao.map(pneu => ({ eixo: '-', codigo: '-', local: pneu.localAtual || 'Sem posicao', pneu }))]
+    .map(item => {
+      const p = item.pneu;
+      const cpk = p ? cpkPneu(p) : null;
+      return `<tr>
+        <td>${escapeHtml(item.local || '-')}</td>
+        <td>${p ? `<strong>${escapeHtml(p.numPneu)}</strong>` : '<span class="muted">Vazio</span>'}</td>
+        <td>${p ? escapeHtml(p.marca || '-') : '-'}</td>
+        <td>${p ? kmFormatado(p.kmRodadoTotal) : '-'}</td>
+        <td>${cpk !== null ? cpkFormatado(cpk) : '-'}</td>
+      </tr>`;
+    }).join('');
+
   container.innerHTML = `
     <div class="fleet-diagram" aria-label="Diagrama de pneus do veículo ${veiculo.placa}">
       <div class="vehicle-rail"></div>
@@ -980,6 +1007,18 @@ function renderDiagrama(veiculo) {
       <div class="vehicle-arrow rear"></div>
       <div class="diagrama-eixos">${htmlEixos}</div>
       <div class="vehicle-id">${veiculo.placa}</div>
+    </div>
+    <div class="vehicle-map-summary">
+      <div><span>Pneus no veiculo</span><strong>${pneusVeiculo.length}</strong></div>
+      <div><span>Posicoes vazias</span><strong>${vagas}</strong></div>
+      <div><span>CPK medio</span><strong>${cpkMedio !== null ? cpkFormatado(cpkMedio) : '-'}</strong></div>
+      <div><span>Motorista</span><strong>${escapeHtml(veiculo.motorista || '-')}</strong></div>
+    </div>
+    <div class="table-container vehicle-map-table">
+      <table>
+        <thead><tr><th>Posicao</th><th>Fogo</th><th>Marca</th><th>KM</th><th>CPK</th></tr></thead>
+        <tbody>${linhasMapa || '<tr><td colspan="5" class="text-center">Sem pneus rodando neste veiculo.</td></tr>'}</tbody>
+      </table>
     </div>`;
 }
 
@@ -988,12 +1027,20 @@ function normalizarPosicaoPneu(valor) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/º/g, '')
+    .replace(/º/g, '')
     .replace(/\s+/g, ' ')
     .trim()
     .toUpperCase();
 }
 
 function renderRodaPneu(pos, pneu) {
+  const cpkNovo = pneu ? cpkPneu(pneu) : null;
+  const estadoNovo = pneu && cpkNovo === null ? 'sem-km' : pneu && cpkNovo > 0.1 ? 'alto-cpk' : '';
+  const tituloNovo = pneu ? `${pos.codigo} - ${pneu.numPneu}` : `${pos.codigo} - Posicao vazia`;
+  return `<div class="tire ${pneu ? 'ocupado' : 'vazio'} ${estadoNovo}" title="${escapeHtml(tituloNovo)}">
+    <span>${escapeHtml(pos.codigo)}</span>
+    ${pneu ? `<strong>${escapeHtml(pneu.numPneu)}</strong>` : ''}
+  </div>`;
   const titulo = pneu ? `${pos.codigo} - Rodando` : `${pos.codigo} - Posição vazia`;
   return `<div class="tire ${pneu ? 'ocupado' : 'vazio'}" title="${titulo}"><span>${pos.codigo}</span></div>`;
 }
@@ -1254,6 +1301,12 @@ function initPneus() {
   if ($('codSistema')) setVal('codSistema', 'PNEU-' + Date.now());
   // Lista
   initConsultaPneus();
+  if ($('btnBuscarDetalhePneu')) $('btnBuscarDetalhePneu').addEventListener('click', () => renderDetalhePneu(getVal('detalhePneuBusca')));
+  if ($('detalhePneuBusca')) {
+    $('detalhePneuBusca').addEventListener('keydown', event => {
+      if (event.key === 'Enter') renderDetalhePneu(getVal('detalhePneuBusca'));
+    });
+  }
 }
 
 async function salvarPneu(event) {
@@ -1262,6 +1315,7 @@ async function salvarPneu(event) {
     id: gerarId(), codSistema: getVal('codSistema'), numPneu: getVal('numPneu'), marca: getVal('marca'),
     modelo: getVal('modelo'), tipo: getVal('tipo'), medida: getVal('medida'), dataCompra: getVal('dataCompra'),
     valorCompra: Number(getVal('valorCompra')) || 0, kmCompra: Number(getVal('kmCompra')) || 0,
+    fornecedorCompra: getVal('fornecedorCompra'), notaFiscalCompra: getVal('notaFiscalCompra'), observacaoCompra: getVal('observacaoCompra'),
     dot: getVal('dot'), serie: getVal('serie'),
     profundidadeInicial: Number(getVal('profundidade')) || 0, profundidadeAtual: Number(getVal('profundidade')) || 0,
     statusAtual: 'Estoque', veiculoAtual: '-', localAtual: 'Estoque', recapagens: [],
@@ -1282,7 +1336,7 @@ async function salvarPneu(event) {
     saveData(KEYS.PNEUS, pneus);
     notificar('Pneu cadastrado no banco com sucesso.', 'success');
     setVal('codSistema', 'PNEU-' + Date.now());
-    ['numPneu', 'marca', 'modelo', 'dot', 'serie', 'dataCompra', 'valorCompra', 'kmCompra', 'profundidade'].forEach(id => setVal(id));
+    ['numPneu', 'marca', 'modelo', 'dot', 'serie', 'dataCompra', 'valorCompra', 'kmCompra', 'profundidade', 'fornecedorCompra', 'notaFiscalCompra', 'observacaoCompra'].forEach(id => setVal(id));
     renderPneus();
   } catch (error) {
     notificar(error.message || 'Erro ao salvar pneu.', 'error');
@@ -1344,6 +1398,9 @@ function renderPneus() {
 }
 
 function verDetalhesPneu(num) {
+  renderDetalhePneu(num);
+  document.querySelector('.tab-btn[data-target="tab-detalhe"]')?.click();
+  return;
   const pneu = getData(KEYS.PNEUS).find(p => normalizarChave(p.numPneu) === normalizarChave(num));
   const movs = getData(KEYS.MOVS).filter(m => (m.numeroPneu || m.id_pneu) === num);
   if (!pneu) {
@@ -1363,6 +1420,112 @@ function verDetalhesPneu(num) {
 }
 
 /* === MOVIMENTAÇÃO === */
+function movimentosDoPneu(num) {
+  const chave = normalizarChave(num);
+  return ordenarMovimentacoesRecentes(getData(KEYS.MOVS)
+    .filter(m => normalizarChave(m.numeroPneu || m.id_pneu) === chave));
+}
+
+function contextoOperacionalPneus() {
+  const pneus = getData(KEYS.PNEUS);
+  const kms = pneus.map(p => asNumber(p.kmRodadoTotal)).filter(km => km > 0);
+  const kmMedio = kms.length ? kms.reduce((a, km) => a + km, 0) / kms.length : 0;
+  const pneusComCpk = pneus.filter(p => cpkPneu(p) !== null);
+  const cpkKm = pneusComCpk.reduce((a, p) => a + asNumber(p.kmRodadoTotal), 0);
+  const cpkCusto = pneusComCpk.reduce((a, p) => a + custoTotalPneu(p), 0);
+  return { kmMedio, cpkMedio: cpkKm > 0 ? cpkCusto / cpkKm : 0 };
+}
+
+function renderDetalheLinha(label, valor) {
+  return `<div class="detail-line"><span>${escapeHtml(label)}</span><strong>${escapeHtml(valor || '-')}</strong></div>`;
+}
+
+function renderDetalhePneu(num) {
+  const panel = $('pneuDetalhePanel');
+  if (!panel) return;
+  const chave = normalizarChave(num || getVal('detalhePneuBusca'));
+  if (!chave) {
+    panel.innerHTML = '<div class="empty-state">Digite o fogo do pneu para consultar.</div>';
+    return;
+  }
+
+  const pneu = getData(KEYS.PNEUS).find(p => normalizarChave(p.numPneu) === chave);
+  const movs = movimentosDoPneu(chave);
+  if (!pneu) {
+    panel.innerHTML = `<div class="empty-state">Pneu nao encontrado. Movimentacoes localizadas: ${movs.length}.</div>`;
+    return;
+  }
+
+  const cpk = cpkPneu(pneu);
+  const recaps = movs.filter(m => (m.tipo_movimentacao || m.tipoMov) === 'Recapagem');
+  const custoRecap = asNumber(pneu.custoRecapagens) || recaps.reduce((a, m) => a + asNumber(m.valorRecape), 0);
+  const ultima = movs[0];
+  const diagnostico = diagnosticoPneu(pneu, contextoOperacionalPneus());
+  setVal('detalhePneuBusca', pneu.numPneu);
+
+  const linhasMov = movs.slice(0, 80).map(m => {
+    const tipo = tipoMovimentacaoLabel(m.tipo_movimentacao || m.tipoMov);
+    const destino = destinoMovimentacaoTabela(m) || '-';
+    const local = localDestinoMovimentacao(m) || '-';
+    const km = kmMovimentacao(m);
+    return `<tr>
+      <td>${escapeHtml(formatarDataDashboard(obterDataMovimentacao(m)))}</td>
+      <td><span class="badge ${movimentacaoBadgeClass(m.tipo_movimentacao || m.tipoMov)}">${escapeHtml(tipo)}</span></td>
+      <td>${escapeHtml(destino)}</td>
+      <td>${escapeHtml(local)}</td>
+      <td>${escapeHtml(km > 0 ? kmFormatado(km) : '-')}</td>
+      <td>${escapeHtml(m.observacao || '')}</td>
+    </tr>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="pneu-detail-hero">
+      <div>
+        <span class="section-kicker">Raio-X do pneu</span>
+        <h2>${escapeHtml(pneu.numPneu)}</h2>
+        <p>${escapeHtml([pneu.marca, pneu.modelo, pneu.medida].filter(Boolean).join(' - ') || 'Cadastro sem detalhes')}</p>
+      </div>
+      <span class="badge ${statusBadgeClass(pneu.statusAtual)}">${escapeHtml(pneu.statusAtual || '-')}</span>
+    </div>
+
+    <div class="detail-kpi-grid">
+      <div class="detail-kpi"><span>Local atual</span><strong>${escapeHtml(pneu.veiculoAtual || '-')}</strong><small>${escapeHtml(pneu.localAtual || '-')}</small></div>
+      <div class="detail-kpi"><span>KM rodado</span><strong>${kmFormatado(pneu.kmRodadoTotal)}</strong><small>Baseado nos lancamentos</small></div>
+      <div class="detail-kpi"><span>Custo total</span><strong>${moeda(custoTotalPneu(pneu))}</strong><small>Compra + recapagens</small></div>
+      <div class="detail-kpi"><span>CPK</span><strong>${cpk !== null ? cpkFormatado(cpk) : '-'}</strong><small>${escapeHtml(diagnostico.texto)}</small></div>
+    </div>
+
+    <div class="detail-grid">
+      <section class="detail-box">
+        <h3>Compra</h3>
+        ${renderDetalheLinha('Data', formatarDataDashboard(pneu.dataCompra))}
+        ${renderDetalheLinha('Valor', moeda(pneu.valorCompra))}
+        ${renderDetalheLinha('Fornecedor', pneu.fornecedorCompra)}
+        ${renderDetalheLinha('Nota fiscal', pneu.notaFiscalCompra)}
+        ${renderDetalheLinha('KM compra', kmFormatado(pneu.kmCompra))}
+        ${renderDetalheLinha('Observacao', pneu.observacaoCompra)}
+      </section>
+      <section class="detail-box">
+        <h3>Vida do pneu</h3>
+        ${renderDetalheLinha('Recapagens/consertos', String(quantidadeRecapagensPneu(pneu) || recaps.length))}
+        ${renderDetalheLinha('Custo recapagens', moeda(custoRecap))}
+        ${renderDetalheLinha('Ultima movimentacao', ultima ? `${formatarDataDashboard(obterDataMovimentacao(ultima))} - ${tipoMovimentacaoLabel(ultima.tipo_movimentacao || ultima.tipoMov)}` : '-')}
+        ${renderDetalheLinha('Movimentacoes', String(movs.length))}
+        ${renderDetalheLinha('Diagnostico', diagnostico.texto)}
+      </section>
+    </div>
+
+    <section class="detail-box">
+      <h3>Historico de movimentacoes</h3>
+      <div class="table-container">
+        <table>
+          <thead><tr><th>Data</th><th>Tipo</th><th>Veiculo</th><th>Local</th><th>KM</th><th>Obs.</th></tr></thead>
+          <tbody>${linhasMov || '<tr><td colspan="6" class="text-center">Sem movimentacoes registradas.</td></tr>'}</tbody>
+        </table>
+      </div>
+    </section>`;
+}
+
 let movEmEdicao = null;
 
 function initMovimentacao() {
@@ -1403,9 +1566,15 @@ function initMovimentacao() {
   renderHistoricoMov();
 }
 
-function popularSelectVeiculos() {
+function popularSelectVeiculos(filtroMotorista = '') {
   document.querySelectorAll('.select-veiculos').forEach(sel => {
-    const veiculos = getData(KEYS.VEICULOS);
+    const veiculosTodos = getData(KEYS.VEICULOS);
+    const motorista = normalizarChave(filtroMotorista);
+    const vinculados = motorista ? veiculosTodos.filter(v => {
+      const nomeVinculado = normalizarChave(v.motorista);
+      return nomeVinculado && (nomeVinculado.includes(motorista) || motorista.includes(nomeVinculado));
+    }) : [];
+    const veiculos = vinculados.length ? vinculados : veiculosTodos;
     const val = sel.value;
     sel.innerHTML = '<option value="">Selecione...</option>' + veiculos.map(v => `<option value="${v.placa}">${v.placa} - ${v.modelo}</option>`).join('');
     if (val) sel.value = val;
@@ -1842,10 +2011,87 @@ function initMotoristaApp(usuario) {
   ['lado', 'eixo', 'stepNumero'].forEach(id => { if ($(id)) $(id).addEventListener('change', atualizarLocal); });
   if ($('btnAdicionarConferenciaItem')) $('btnAdicionarConferenciaItem').addEventListener('click', adicionarItemConferenciaMotorista);
   if ($('btnSalvarMov')) $('btnSalvarMov').addEventListener('click', salvarConferenciaMotorista);
-  popularSelectVeiculos();
+  popularSelectVeiculos(usuario.nome || usuario.usuario);
+  if ($('veiculoAtual')) $('veiculoAtual').addEventListener('change', renderPneusEsperadosMotorista);
   if (typeof toggleDriverMovFields === 'function') toggleDriverMovFields();
+  renderPneusEsperadosMotorista();
   renderItensConferenciaMotorista();
   renderHistoricoMotorista();
+}
+
+function pneusEsperadosDoVeiculo(placa) {
+  return getData(KEYS.PNEUS)
+    .filter(p => p.statusAtual === 'Rodando' && normalizarChave(p.veiculoAtual) === normalizarChave(placa))
+    .sort((a, b) => normalizarPosicaoPneu(a.localAtual).localeCompare(normalizarPosicaoPneu(b.localAtual)));
+}
+
+function renderPneusEsperadosMotorista() {
+  const box = $('driverExpectedTires');
+  if (!box) return;
+  const placa = getVal('veiculoAtual');
+  if (!placa) {
+    box.innerHTML = '<p class="driver-empty">Selecione o veiculo para ver os pneus esperados.</p>';
+    return;
+  }
+  const pneus = pneusEsperadosDoVeiculo(placa);
+  if (!pneus.length) {
+    box.innerHTML = '<p class="driver-empty">Nenhum pneu rodando vinculado a este veiculo no sistema.</p>';
+    return;
+  }
+  box.innerHTML = pneus.map(p => `
+    <article class="driver-expected-item">
+      <div>
+        <strong>${escapeHtml(p.localAtual || 'Sem posicao')}</strong>
+        <span>Fogo ${escapeHtml(p.numPneu)} - ${escapeHtml(p.marca || '-')}</span>
+      </div>
+      <div class="driver-expected-actions">
+        <button type="button" onclick="selecionarPneuConferenciaMotorista('${escapeHtml(p.numPneu)}','Atualizacao')">Atualizar</button>
+        <button type="button" onclick="selecionarPneuConferenciaMotorista('${escapeHtml(p.numPneu)}','Troca')">Trocar</button>
+        <button type="button" onclick="selecionarPneuConferenciaMotorista('${escapeHtml(p.numPneu)}','Retirada')">Retirar</button>
+      </div>
+    </article>`).join('');
+}
+
+function preencherPosicaoConferencia(local) {
+  const pos = normalizarPosicaoPneu(local);
+  if (pos.startsWith('STEP')) {
+    setSelectPorTexto('eixo', 'STEP');
+    const n = pos.match(/\d+/)?.[0] || '1';
+    setSelectPorTexto('stepNumero', `${n} Step`);
+    setVal('lado', '');
+  } else {
+    const eixo = pos.match(/(\d+).*EIXO/)?.[1];
+    const lado = ['LDD', 'LDF', 'LED', 'LEF', 'LD', 'LE'].find(cod => pos.endsWith(cod));
+    if (eixo) setSelectPorTexto('eixo', `${eixo} EIXO`);
+    if (lado) setSelectPorTexto('lado', lado);
+  }
+  toggleStepField();
+  atualizarLocal();
+}
+
+function setSelectPorTexto(id, valor) {
+  const el = $(id);
+  if (!el) return;
+  const alvo = normalizarPosicaoPneu(valor);
+  const opt = [...el.options].find(option => {
+    const texto = `${option.value} ${option.textContent}`;
+    return normalizarPosicaoPneu(texto).includes(alvo) || alvo.includes(normalizarPosicaoPneu(option.value));
+  });
+  if (opt) el.value = opt.value;
+}
+
+function selecionarPneuConferenciaMotorista(numPneu, tipo) {
+  const pneu = getData(KEYS.PNEUS).find(p => normalizarChave(p.numPneu) === normalizarChave(numPneu));
+  if ($('tipoMov')) $('tipoMov').value = tipo;
+  if (tipo === 'Troca') {
+    setVal('pneuSaiu', numPneu);
+    setVal('pneuEntrou', '');
+  } else {
+    setVal('numeroPneu', numPneu);
+  }
+  if (pneu) preencherPosicaoConferencia(pneu.localAtual);
+  if (typeof toggleDriverMovFields === 'function') toggleDriverMovFields();
+  notificar('Pneu carregado na conferencia.', 'success');
 }
 
 function itemConferenciaAtual() {
@@ -2074,6 +2320,7 @@ function renderDashboardOperacional() {
   const ativos = pneus.filter(p => p.statusAtual !== 'Baixado');
   const rodando = pneus.filter(p => p.statusAtual === 'Rodando');
   const estoque = pneus.filter(p => p.statusAtual === 'Estoque');
+  const conferenciasPendentes = getData(KEYS.CONFERENCIAS).filter(c => c.status === 'pendente');
   const ultimaPorPneu = mapaUltimaMovimentacaoPorPneu(movs);
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
@@ -2141,6 +2388,11 @@ function renderDashboardOperacional() {
     .sort((a, b) => b.prioridade - a.prioridade);
 
   const alertas = [];
+  if (conferenciasPendentes.length) alertas.push({
+    tipo: 'warning',
+    titulo: `${conferenciasPendentes.length} conferencia(s) de motorista pendente(s)`,
+    detalhe: 'Acesse Configuracoes para aprovar ou recusar antes de fechar os relatorios.'
+  });
   if (pneusParados.length) alertas.push({
     tipo: 'warning',
     titulo: `${pneusParados.length} pneu(s) rodando sem movimentação recente`,
@@ -3054,6 +3306,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
   window.dadosBancoProntos = sincronizarDadosBanco(recursosPorPagina[document.body.id]);
   await window.dadosBancoProntos;
+  if (document.body.id === 'dashboard-page' && usuarioPodeGerenciarConferencias(usuarioLogado)) {
+    await fetchConferencias('pendente').catch(() => []);
+  }
 
   // Motoristas
   if ($('motoristas-page')) initMotoristas();

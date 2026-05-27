@@ -1,5 +1,18 @@
 const db = require('../config/db');
 
+let compraColumnsReady = false;
+
+async function ensureCompraColumns() {
+  if (compraColumnsReady) return;
+  await db.query(`
+    ALTER TABLE "Pneus_Frota"
+      ADD COLUMN IF NOT EXISTS "FornecedorCompra" TEXT,
+      ADD COLUMN IF NOT EXISTS "NotaFiscalCompra" TEXT,
+      ADD COLUMN IF NOT EXISTS "ObsCompra" TEXT
+  `);
+  compraColumnsReady = true;
+}
+
 class PneuController {
   mapPneu(row) {
     return {
@@ -16,6 +29,9 @@ class PneuController {
       kmCompra: row.KmCompra,
       dot: row.Dot,
       serie: row.Serie,
+      fornecedorCompra: row.FornecedorCompra || '',
+      notaFiscalCompra: row.NotaFiscalCompra || '',
+      observacaoCompra: row.ObsCompra || '',
       profundidadeAtual: row.Profundidademm,
       statusAtual: row.Status || 'Estoque',
       veiculoAtual: !row.VeiculoAtual || row.VeiculoAtual === '0' ? 'Estoque' : row.VeiculoAtual,
@@ -27,6 +43,7 @@ class PneuController {
 
   async getPneus(req, res) {
     try {
+      await ensureCompraColumns();
       const { rows } = await db.query(`
         WITH ultima_mov AS (
           SELECT DISTINCT ON ("CodPneu")
@@ -77,6 +94,9 @@ class PneuController {
           p."KmCompra" AS "kmCompra",
           p."Dot" AS dot,
           p."Serie" AS serie,
+          COALESCE(p."FornecedorCompra", '') AS "fornecedorCompra",
+          COALESCE(p."NotaFiscalCompra", '') AS "notaFiscalCompra",
+          COALESCE(p."ObsCompra", '') AS "observacaoCompra",
           p."Profundidademm" AS "profundidadeAtual",
           CASE
             WHEN u."TipoMov" = '5' THEN 'Baixado'
@@ -119,6 +139,7 @@ class PneuController {
 
   async criarPneu(req, res) {
     try {
+      await ensureCompraColumns();
       const pneu = req.body;
       const codPneu = String(pneu.codSistema || pneu.id || `PNEU-${Date.now()}`).trim();
       const numPneu = String(pneu.numPneu || '').trim();
@@ -136,6 +157,9 @@ class PneuController {
       const profundidade = Number(pneu.profundidadeAtual || pneu.profundidadeInicial || 0) || null;
       const valorCompra = Number(pneu.valorCompra || 0) || null;
       const kmCompra = Number(pneu.kmCompra || 0) || null;
+      const fornecedorCompra = String(pneu.fornecedorCompra || '').trim();
+      const notaFiscalCompra = String(pneu.notaFiscalCompra || '').trim();
+      const observacaoCompra = String(pneu.observacaoCompra || '').trim();
 
       if ((profundidade !== null && (profundidade < 0 || profundidade > 40)) ||
         (valorCompra !== null && valorCompra < 0) ||
@@ -159,9 +183,9 @@ class PneuController {
         INSERT INTO "Pneus_Frota" (
           "CodPneu", "NPneu", "Marca", "TipoPneu", "KmPercorrido", "VeiculoAtual", "LocalAtual",
           "Status", "QtdeRecapagem", "DataCompra", "Largura", "Modelo", "Dot", "Serie",
-          "Profundidademm", "VlCompra", "KmCompra"
+          "Profundidademm", "VlCompra", "KmCompra", "FornecedorCompra", "NotaFiscalCompra", "ObsCompra"
         )
-        VALUES ($1, $2, $3, $4, 0, '0', '0', 'Estoque', '0', $5, $6, $7, $8, $9, $10, $11, $12)
+        VALUES ($1, $2, $3, $4, 0, '0', '0', 'Estoque', '0', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         RETURNING *
       `, [
         codPneu,
@@ -175,7 +199,10 @@ class PneuController {
         pneu.serie || '',
         profundidade,
         valorCompra,
-        kmCompra
+        kmCompra,
+        fornecedorCompra,
+        notaFiscalCompra,
+        observacaoCompra
       ]);
 
       const row = rows[0];
@@ -193,6 +220,9 @@ class PneuController {
         kmCompra: row.KmCompra,
         dot: row.Dot,
         serie: row.Serie,
+        fornecedorCompra: row.FornecedorCompra || '',
+        notaFiscalCompra: row.NotaFiscalCompra || '',
+        observacaoCompra: row.ObsCompra || '',
         profundidadeAtual: row.Profundidademm,
         statusAtual: row.Status || 'Estoque',
         veiculoAtual: !row.VeiculoAtual || row.VeiculoAtual === '0' ? 'Estoque' : row.VeiculoAtual,

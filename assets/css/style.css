@@ -2451,6 +2451,227 @@ tbody tr:hover {
   text-align: center;
 }
 
+.detail-search-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.empty-state {
+  padding: 28px;
+  border: 1px dashed var(--cinza-300);
+  border-radius: 8px;
+  background: var(--cinza-50);
+  color: var(--cinza-500);
+  text-align: center;
+}
+
+.pneu-detail-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.pneu-detail-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--cinza-200);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.pneu-detail-hero h2 {
+  margin: 3px 0;
+  color: var(--cinza-900);
+  font-size: 1.45rem;
+}
+
+.pneu-detail-hero p {
+  margin: 0;
+  color: var(--cinza-500);
+}
+
+.detail-kpi-grid,
+.vehicle-map-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.detail-kpi,
+.vehicle-map-summary>div {
+  padding: 14px;
+  border: 1px solid var(--cinza-200);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.detail-kpi span,
+.vehicle-map-summary span {
+  display: block;
+  color: var(--cinza-500);
+  font-size: .76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.detail-kpi strong,
+.vehicle-map-summary strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--cinza-900);
+  font-size: 1.05rem;
+}
+
+.detail-kpi small {
+  color: var(--cinza-500);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.detail-box {
+  padding: 16px;
+  border: 1px solid var(--cinza-200);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.detail-box h3 {
+  margin: 0 0 12px;
+  color: var(--cinza-800);
+  font-size: .98rem;
+}
+
+.detail-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--cinza-100);
+}
+
+.detail-line:last-child {
+  border-bottom: 0;
+}
+
+.detail-line span {
+  color: var(--cinza-500);
+}
+
+.detail-line strong {
+  color: var(--cinza-800);
+  text-align: right;
+}
+
+.tire strong {
+  position: absolute;
+  right: 50%;
+  bottom: -20px;
+  transform: translateX(50%);
+  min-width: 54px;
+  padding: 2px 4px;
+  border: 1px solid var(--cinza-300);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--cinza-900);
+  font-size: .62rem;
+  line-height: 1.1;
+}
+
+.tire.alto-cpk {
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, .45), 0 5px 10px rgba(15, 23, 42, 0.32);
+}
+
+.tire.sem-km {
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, .45), 0 5px 10px rgba(15, 23, 42, 0.32);
+}
+
+.vehicle-map-summary {
+  margin-top: 18px;
+}
+
+.vehicle-map-table {
+  margin-top: 14px;
+}
+
+.muted {
+  color: var(--cinza-400);
+}
+
+.driver-card-title.compact {
+  margin-bottom: 10px;
+}
+
+.driver-card-title.compact h2 {
+  font-size: .98rem;
+}
+
+.driver-expected-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #dbe3ee;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.driver-expected-list {
+  display: grid;
+  gap: 8px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.driver-expected-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--cinza-200);
+  border-radius: 8px;
+  background: var(--cinza-50);
+}
+
+.driver-expected-item strong,
+.driver-expected-item span {
+  display: block;
+}
+
+.driver-expected-item strong {
+  color: var(--cinza-900);
+}
+
+.driver-expected-item span {
+  color: var(--cinza-500);
+  font-size: .78rem;
+}
+
+.driver-expected-actions {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.driver-expected-actions button {
+  min-height: 30px;
+  border: 1px solid var(--cinza-300);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--cinza-700);
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 850;
+}
+
 @media(max-width:1280px) {
   .ops-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2555,6 +2776,15 @@ tbody tr:hover {
   .filtros-row,
   .filtro-inline {
     padding: 10px;
+  }
+
+  .detail-search-row,
+  .driver-expected-item {
+    grid-template-columns: 1fr;
+  }
+
+  .driver-expected-actions {
+    justify-content: flex-start;
   }
 }
 
