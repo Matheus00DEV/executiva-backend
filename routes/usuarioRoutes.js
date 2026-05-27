@@ -10,6 +10,7 @@ router.put('/me', usuarioController.atualizarMeuAcesso);
 router.post('/', exigirAdmin, usuarioController.criarUsuarioDireto);
 router.put('/:id', exigirAdmin, usuarioController.atualizarUsuario);
 router.put('/:id/status', exigirAdmin, usuarioController.atualizarStatusUsuario);
+router.put('/:id/perfil', exigirAdmin, usuarioController.atualizarPerfilUsuario);
 router.put('/:id/permissoes', exigirAdmin, usuarioController.atualizarPermissoes);
 router.put('/:id/senha', exigirAdmin, usuarioController.alterarSenha);
 router.delete('/:id', exigirAdmin, usuarioController.excluirUsuario);

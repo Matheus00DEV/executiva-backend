@@ -333,8 +333,7 @@ function validarCadastroPneu(pneu, pneus) {
 
   [
     validarNumeroFaixa(getVal('valorCompra'), 0, 1000000, 'Valor de compra'),
-    validarNumeroFaixa(getVal('kmCompra'), 0, 5000000, 'KM na compra'),
-    validarNumeroFaixa(getVal('profundidade'), 0, 40, 'Profundidade')
+    validarNumeroFaixa(getVal('kmCompra'), 0, 5000000, 'KM na compra')
   ].filter(Boolean).forEach(erro => erros.push(erro));
 
   return erros;
@@ -365,6 +364,7 @@ function validarMovimentacaoFormulario(mov, pneu, editando = false) {
   }
 
   if (tipo === 'Instalacao') {
+    if (pneu && pneu.statusAtual === 'Rodando' && !editando) erros.push('Este pneu já está rodando. Faça a retirada antes de instalar em outro local.');
     if (!mov.veiculoAtual) erros.push('Selecione o veículo de destino.');
     if (!mov.localAtual) erros.push('Informe eixo e lado para gerar o local atual.');
     if (kmVeiculo <= 0) erros.push('Informe o KM do veículo para instalação.');
@@ -391,6 +391,19 @@ function validarMovimentacaoFormulario(mov, pneu, editando = false) {
     if (valorRecape <= 0) erros.push('Informe o valor da recapagem/conserto.');
   }
 
+  if ((tipo === 'Instalacao' || tipo === 'Atualizacao') && mov.veiculoAtual && mov.localAtual) {
+    const pneus = getData(KEYS.PNEUS);
+    const ocupado = pneus.find(p =>
+      normalizarChave(p.numPneu) !== normalizarChave(mov.numeroPneu) &&
+      p.statusAtual === 'Rodando' &&
+      normalizarChave(p.veiculoAtual) === normalizarChave(mov.veiculoAtual) &&
+      normalizarChave(p.localAtual) === normalizarChave(mov.localAtual)
+    );
+    if (ocupado) {
+      erros.push(`A posição ${mov.localAtual} do veículo ${mov.veiculoAtual} já está ocupada pelo pneu ${ocupado.numPneu}.`);
+    }
+  }
+
   return erros;
 }
 
@@ -402,6 +415,33 @@ function cpkPneu(p) {
   const km = asNumber(p.kmRodadoTotal);
   const custo = custoTotalPneu(p);
   return km > 0 && custo > 0 ? custo / km : null;
+}
+
+function quantidadeRecapagensPneu(p) {
+  return asNumber(p.quantidadeRecapagens || p.quantidade_recapagens) ||
+    (Array.isArray(p.recapagens) ? p.recapagens.length : 0);
+}
+
+function statusBadgeClass(status) {
+  return status === 'Rodando' ? 'badge-success' :
+    status === 'Estoque' ? 'badge-warning' :
+      status === 'Baixado' ? 'badge-danger' :
+        status === 'Recapado' ? 'badge-purple' : 'badge-info';
+}
+
+function diagnosticoPneu(p, contexto = {}) {
+  const km = asNumber(p.kmRodadoTotal);
+  const cpk = cpkPneu(p);
+  const recapagens = quantidadeRecapagensPneu(p);
+  const kmMedio = asNumber(contexto.kmMedio);
+  const cpkMedio = asNumber(contexto.cpkMedio);
+
+  if (p.statusAtual === 'Baixado') return { texto: 'Baixado', classe: 'badge-danger' };
+  if (cpk !== null && cpkMedio > 0 && cpk > cpkMedio * 1.25) return { texto: 'CPK alto', classe: 'badge-danger' };
+  if (kmMedio > 0 && km > kmMedio * 1.35) return { texto: 'KM alto', classe: 'badge-warning' };
+  if (km <= 0 && p.statusAtual !== 'Estoque') return { texto: 'Sem KM', classe: 'badge-info' };
+  if (recapagens > 0) return { texto: 'Recapado', classe: 'badge-purple' };
+  return { texto: 'OK', classe: 'badge-success' };
 }
 
 /* === AUTH === */
@@ -453,7 +493,7 @@ function atualizarUsuarioNaInterface(usuario) {
       footer.prepend(info);
     }
     info.className = 'sidebar-user';
-    const perfil = usuarioEhAdmin(usuario) ? 'Administrador' : usuario.perfil === 'motorista' ? 'Motorista' : 'Operacional';
+    const perfil = perfilLabelSistema(usuario.perfil);
     info.innerHTML = `<span>${perfil}</span><strong>${usuario.nome || usuario.usuario}</strong>`;
   });
 }
@@ -470,7 +510,15 @@ function paginaAtualEhMotorista() {
 }
 
 function usuarioEhAdmin(usuario) {
-  return ['admin', 'administrador'].includes(String(usuario?.perfil || '').toLowerCase());
+  return perfilUsuarioNormalizado(usuario?.perfil) === 'admin';
+}
+
+function perfilUsuarioNormalizado(perfil) {
+  const normalizado = String(perfil || '').trim().toLowerCase();
+  if (['admin', 'administrador', 'adm'].includes(normalizado)) return 'admin';
+  if (normalizado === 'operacional') return 'assistente';
+  if (normalizado === 'motorista') return 'motorista';
+  return 'assistente';
 }
 
 function usuarioPodeCadastrar(usuario) {
@@ -485,7 +533,7 @@ function usuarioPodeRelatorios(usuario) {
 
 function exigirPerfil(usuario) {
   if (!usuario) return false;
-  const perfil = usuario.perfil || 'admin';
+  const perfil = perfilUsuarioNormalizado(usuario.perfil || 'admin');
   if (document.body.id === 'configuracoes-page') return true;
   if (paginaAtualEhMotorista()) return true;
   if (perfil === 'motorista') {
@@ -583,7 +631,7 @@ function initUsuariosSistema() {
 async function salvarUsuarioSistema() {
   const nome = getVal('usuarioNome');
   const usuario = getVal('usuarioLogin').toLowerCase();
-  const perfil = getVal('usuarioPerfil') || 'motorista';
+  const perfil = perfilUsuarioNormalizado(getVal('usuarioPerfil') || 'motorista');
   const ativo = getVal('usuarioAtivo') !== 'false';
   const senha = getVal('usuarioSenha');
 
@@ -611,7 +659,7 @@ async function salvarUsuarioSistema() {
 function limparFormularioUsuarioSistema() {
   usuarioSistemaEmEdicao = null;
   ['usuarioNome', 'usuarioLogin', 'usuarioSenha'].forEach(id => setVal(id));
-  setVal('usuarioPerfil', 'admin');
+  setVal('usuarioPerfil', 'assistente');
   setVal('usuarioAtivo', 'true');
   if ($('tituloFormUsuario')) $('tituloFormUsuario').textContent = 'Novo usuario';
   if ($('btnSalvarUsuario')) $('btnSalvarUsuario').textContent = 'Salvar usuario';
@@ -639,7 +687,7 @@ async function renderUsuariosSistema() {
 
     tbody.innerHTML = '';
     filtrados.forEach(u => {
-      const perfilLabel = u.perfil === 'admin' ? 'Administrativo' : 'Motorista';
+      const perfilLabel = perfilLabelSistema(u.perfil);
       const statusClass = u.ativo ? 'badge-success' : 'badge-danger';
       const statusLabel = u.ativo ? 'Ativo' : 'Bloqueado';
       const tr = document.createElement('tr');
@@ -667,7 +715,7 @@ async function editarUsuarioSistema(id) {
     usuarioSistemaEmEdicao = usuario.id;
     setVal('usuarioNome', usuario.nome || '');
     setVal('usuarioLogin', usuario.usuario || '');
-    setVal('usuarioPerfil', usuario.perfil || 'motorista');
+    setVal('usuarioPerfil', perfilUsuarioNormalizado(usuario.perfil || 'motorista'));
     setVal('usuarioAtivo', usuario.ativo ? 'true' : 'false');
     setVal('usuarioSenha', '');
     if ($('tituloFormUsuario')) $('tituloFormUsuario').textContent = 'Editar usuario';
@@ -1211,7 +1259,7 @@ async function salvarPneu(event) {
 
 function initConsultaPneus() {
   renderPneus();
-  ['filtroPneu', 'filtroMarca', 'filtroStatus', 'filtroVeiculo'].forEach(id => {
+  ['filtroPneu', 'filtroMarca', 'filtroStatus', 'filtroVeiculo', 'filtroPerformance'].forEach(id => {
     if ($(id)) { $(id).addEventListener('input', renderPneus); $(id).addEventListener('change', renderPneus); }
   });
 }
@@ -1220,31 +1268,64 @@ function renderPneus() {
   const tbody = $('corpoTabelaPneus'); if (!tbody) return;
   const pneus = getData(KEYS.PNEUS);
   const fN = (getVal('filtroPneu') || '').toLowerCase(), fM = (getVal('filtroMarca') || '').toLowerCase(),
-    fS = getVal('filtroStatus'), fV = (getVal('filtroVeiculo') || '').toLowerCase();
+    fS = getVal('filtroStatus'), fV = (getVal('filtroVeiculo') || '').toLowerCase(), fP = getVal('filtroPerformance');
+  const kms = pneus.map(p => asNumber(p.kmRodadoTotal)).filter(km => km > 0);
+  const kmMedio = kms.length ? kms.reduce((a, km) => a + km, 0) / kms.length : 0;
+  const pneusComCpk = pneus.filter(p => cpkPneu(p) !== null);
+  const cpkKm = pneusComCpk.reduce((a, p) => a + asNumber(p.kmRodadoTotal), 0);
+  const cpkCusto = pneusComCpk.reduce((a, p) => a + custoTotalPneu(p), 0);
+  const cpkMedio = cpkKm > 0 ? cpkCusto / cpkKm : 0;
+  const atendePerformance = p => {
+    const km = asNumber(p.kmRodadoTotal);
+    const cpk = cpkPneu(p);
+    if (!fP) return true;
+    if (fP === 'sem-km') return km <= 0 && p.statusAtual !== 'Estoque';
+    if (fP === 'alto-cpk') return cpk !== null && cpkMedio > 0 && cpk > cpkMedio * 1.25;
+    if (fP === 'alto-km') return kmMedio > 0 && km > kmMedio * 1.35;
+    if (fP === 'recapado') return quantidadeRecapagensPneu(p) > 0;
+    return true;
+  };
   const f = pneus.filter(p => (!fN || (p.numPneu || '').toLowerCase().includes(fN)) && (!fM || (p.marca || '').toLowerCase().includes(fM))
-    && (!fS || p.statusAtual === fS) && (!fV || (p.veiculoAtual || '').toLowerCase().includes(fV)));
+    && (!fS || p.statusAtual === fS) && (!fV || (p.veiculoAtual || '').toLowerCase().includes(fV)) && atendePerformance(p));
   const exibidos = f.slice(0, MAX_TABLE_ROWS);
   tbody.innerHTML = '';
-  if (!f.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum pneu encontrado.</td></tr>'; return; }
+  if (!f.length) { tbody.innerHTML = '<tr><td colspan="11" class="text-center">Nenhum pneu encontrado.</td></tr>'; return; }
   exibidos.forEach(p => {
-    const bc = p.statusAtual === 'Rodando' ? 'badge-success' : p.statusAtual === 'Estoque' ? 'badge-warning' :
-      p.statusAtual === 'Baixado' ? 'badge-danger' : 'badge-purple';
+    const bc = statusBadgeClass(p.statusAtual);
+    const cpk = cpkPneu(p);
+    const diagnostico = diagnosticoPneu(p, { kmMedio, cpkMedio });
     const tr = document.createElement('tr');
     tr.innerHTML = `<td><strong>${p.numPneu}</strong></td><td>${p.marca}</td><td>${p.modelo || '-'}</td>
       <td>${p.medida || '-'}</td><td><span class="badge ${bc}">${p.statusAtual}</span></td>
-      <td>${p.veiculoAtual}</td><td><button class="btn-icon" onclick="verDetalhesPneu('${p.numPneu}')">📋</button></td>`;
+      <td>${p.veiculoAtual}</td><td>${kmFormatado(p.kmRodadoTotal)}</td><td>${moeda(custoTotalPneu(p))}</td>
+      <td>${cpk !== null ? cpkFormatado(cpk) : '-'}</td><td><span class="badge ${diagnostico.classe}">${diagnostico.texto}</span></td>
+      <td><button class="btn-icon" onclick="verDetalhesPneu('${p.numPneu}')">📋</button></td>`;
     tbody.appendChild(tr);
   });
   if (f.length > exibidos.length) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td colspan="7" class="text-center">Mostrando ${exibidos.length} de ${f.length}. Use os filtros para localizar um pneu especifico.</td>`;
+    tr.innerHTML = `<td colspan="11" class="text-center">Mostrando ${exibidos.length} de ${f.length}. Use os filtros para localizar um pneu específico.</td>`;
     tbody.appendChild(tr);
   }
 }
 
 function verDetalhesPneu(num) {
+  const pneu = getData(KEYS.PNEUS).find(p => normalizarChave(p.numPneu) === normalizarChave(num));
   const movs = getData(KEYS.MOVS).filter(m => (m.numeroPneu || m.id_pneu) === num);
-  alert(`Pneu ${num}: ${movs.length} movimentação(ões) registrada(s).`);
+  if (!pneu) {
+    alert(`Pneu ${num}: ${movs.length} movimentação(ões) registrada(s).`);
+    return;
+  }
+  const cpk = cpkPneu(pneu);
+  alert([
+    `Pneu ${num}`,
+    `Status: ${pneu.statusAtual || '-'}`,
+    `Veículo/local: ${pneu.veiculoAtual || '-'} / ${pneu.localAtual || '-'}`,
+    `KM rodado: ${kmFormatado(pneu.kmRodadoTotal)}`,
+    `Custo total: ${moeda(custoTotalPneu(pneu))}`,
+    `CPK: ${cpk !== null ? cpkFormatado(cpk) : 'sem KM'}`,
+    `Movimentações: ${movs.length}`
+  ].join('\n'));
 }
 
 /* === MOVIMENTAÇÃO === */
@@ -1862,6 +1943,7 @@ function renderDashboardOperacional() {
   const kmCpk = cpkValidos.reduce((a, item) => a + item.km, 0);
   const custoCpk = cpkValidos.reduce((a, item) => a + item.custo, 0);
   const cpkMedio = kmCpk > 0 ? custoCpk / kmCpk : 0;
+  const cpkAltos = cpkValidos.filter(item => cpkMedio > 0 && item.cpk > cpkMedio * 1.25);
   const kmsAtivos = ativos.map(p => asNumber(p.kmRodadoTotal)).filter(km => km > 0);
   const kmMedioAtivos = kmsAtivos.length ? kmsAtivos.reduce((a, km) => a + km, 0) / kmsAtivos.length : 0;
   const prioridadesPneus = ativos.map(p => {
@@ -1917,6 +1999,11 @@ function renderDashboardOperacional() {
     titulo: `${pneusSemKm.length} pneu(s) sem KM calculado`,
     detalhe: 'Sem KM, o CPK fica incompleto e perde força na análise.'
   });
+  if (cpkAltos.length) alertas.push({
+    tipo: 'danger',
+    titulo: `${cpkAltos.length} pneu(s) com CPK acima da média`,
+    detalhe: 'Priorize estes pneus nos relatórios para entender custo por marca, veículo ou recapagem.'
+  });
   if (baixas30.length) alertas.push({
     tipo: 'danger',
     titulo: `${baixas30.length} baixa(s) nos últimos 30 dias`,
@@ -1928,21 +2015,39 @@ function renderDashboardOperacional() {
     detalhe: 'Acompanhe se os lançamentos estão sendo feitos na rotina.'
   });
 
-  if ($('dashboardAlertsCount')) $('dashboardAlertsCount').textContent = prioridadesPneus.length || alertas.length;
+  const itensAlerta = [
+    ...alertas.map(alerta => ({ ...alerta, geral: true })),
+    ...prioridadesPneus.map(item => ({ ...item, geral: false }))
+  ];
+
+  if ($('dashboardAlertsCount')) $('dashboardAlertsCount').textContent = itensAlerta.length;
   if (alertsEl) {
-    if (!prioridadesPneus.length) {
+    if (!itensAlerta.length) {
       alertsEl.innerHTML = '<div class="ops-alert ops-alert-success"><span class="ops-alert-dot"></span><div><strong>Operação sem alertas críticos</strong><small>Os principais indicadores estão dentro do esperado.</small></div></div>';
     } else {
-      alertsEl.innerHTML = prioridadesPneus.slice(0, 8).map(item => `
-        <div class="ops-alert priority-alert ops-alert-${item.tipo}">
-          <span class="ops-alert-dot"></span>
-          <div>
-            <strong>Pneu ${escapeHtml(item.pneu.numPneu || '-')} <span class="priority-chip">${escapeHtml(item.pneu.statusAtual || '-')}</span></strong>
-            <small><b>Veículo/implemento:</b> ${escapeHtml(item.veiculo)} · <b>Local:</b> ${escapeHtml(item.local)}</small>
-            <small class="priority-reason">${escapeHtml(item.motivos.join(' | '))}</small>
+      alertsEl.innerHTML = itensAlerta.slice(0, 8).map(item => {
+        if (item.geral) {
+          return `
+            <div class="ops-alert ops-alert-${item.tipo}">
+              <span class="ops-alert-dot"></span>
+              <div>
+                <strong>${escapeHtml(item.titulo)}</strong>
+                <small>${escapeHtml(item.detalhe)}</small>
+              </div>
+            </div>
+          `;
+        }
+        return `
+          <div class="ops-alert priority-alert ops-alert-${item.tipo}">
+            <span class="ops-alert-dot"></span>
+            <div>
+              <strong>Pneu ${escapeHtml(item.pneu.numPneu || '-')} <span class="priority-chip">${escapeHtml(item.pneu.statusAtual || '-')}</span></strong>
+              <small><b>Veículo/implemento:</b> ${escapeHtml(item.veiculo)} · <b>Local:</b> ${escapeHtml(item.local)}</small>
+              <small class="priority-reason">${escapeHtml(item.motivos.join(' | '))}</small>
+            </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
   }
 
@@ -1950,6 +2055,7 @@ function renderDashboardOperacional() {
   if (score !== null) {
     score -= Math.min(22, Math.round((pneusParados.length / Math.max(1, rodando.length)) * 35));
     score -= Math.min(14, Math.round((pneusSemKm.length / Math.max(1, ativos.length)) * 35));
+    score -= Math.min(14, Math.round((cpkAltos.length / Math.max(1, ativos.length)) * 35));
     score -= Math.min(16, Math.round((baixas30.length / Math.max(1, pneus.length)) * 120));
     score = Math.max(35, Math.min(100, Math.round(score)));
   }
@@ -2023,11 +2129,14 @@ function renderDashboardOperacional() {
 /* === DASHBOARD === */
 function atualizarDashboard() {
   const pneus = getData(KEYS.PNEUS), veiculos = getData(KEYS.VEICULOS);
+  const recapagens = getData(KEYS.RECAPAGENS);
   const pneusComCpk = pneus.filter(p => cpkPneu(p) !== null);
   const cpkKm = pneusComCpk.reduce((a, p) => a + asNumber(p.kmRodadoTotal), 0);
   const cpkCusto = pneusComCpk.reduce((a, p) => a + custoTotalPneu(p), 0);
   const cpkMedio = cpkKm > 0 ? cpkCusto / cpkKm : 0;
   const kmTotal = pneus.reduce((a, p) => a + asNumber(p.kmRodadoTotal), 0);
+  const investimentoTotal = pneus.reduce((a, p) => a + custoTotalPneu(p), 0);
+  const totalRecapagens = recapagens.length || pneus.reduce((a, p) => a + quantidadeRecapagensPneu(p), 0);
   const s = {
     total: pneus.length, rodando: pneus.filter(p => p.statusAtual === 'Rodando').length,
     estoque: pneus.filter(p => p.statusAtual === 'Estoque').length,
@@ -2040,6 +2149,8 @@ function atualizarDashboard() {
   if ($('totalVeiculos')) $('totalVeiculos').textContent = s.veiculos;
   if ($('cpkMedioDashboard')) $('cpkMedioDashboard').textContent = cpkMedio ? cpkFormatado(cpkMedio) : 'R$\u00a00,00';
   if ($('kmRodadoDashboard')) $('kmRodadoDashboard').textContent = kmFormatado(kmTotal);
+  if ($('investimentoDashboard')) $('investimentoDashboard').textContent = moeda(investimentoTotal);
+  if ($('recapagensDashboard')) $('recapagensDashboard').textContent = totalRecapagens.toLocaleString('pt-BR');
   renderDashboardOperacional();
 }
 
@@ -2300,10 +2411,12 @@ function perfilLabelSistema(perfil) {
   const mapa = {
     admin: 'Administrador',
     administrador: 'Administrador',
-    operacional: 'Operacional',
+    adm: 'Administrador',
+    assistente: 'Assistente',
+    operacional: 'Assistente',
     motorista: 'Motorista'
   };
-  return mapa[String(perfil || '').toLowerCase()] || 'Operacional';
+  return mapa[String(perfil || '').toLowerCase()] || 'Assistente';
 }
 
 function initConfiguracoes(usuario) {
@@ -2343,6 +2456,14 @@ async function atualizarPermissoesAcesso(id, podeCadastrar, podeRelatorios) {
   });
 }
 
+async function atualizarPerfilAcesso(id, perfil) {
+  return await apiUsuarios(`/${encodeURIComponent(id)}/perfil`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ perfil })
+  });
+}
+
 async function atualizarMeuAcessoApi(payload) {
   return await apiUsuarios('/me', {
     method: 'PUT',
@@ -2367,7 +2488,7 @@ function renderMeuAcesso(usuario) {
         <strong>${escapeHtml(usuario.nome || usuario.usuario || '-')}</strong>
       </div>
       <div>
-        <span class="cell-sub">Perfil</span>
+        <span class="cell-sub">Funcao</span>
         <strong>${escapeHtml(perfilLabelSistema(usuario.perfil))}</strong>
       </div>
       <div>
@@ -2473,7 +2594,7 @@ async function renderUsuariosAcesso(usuarioLogado = obterUsuarioLogado()) {
   const tbody = $('tabelaUsuariosAcesso');
   if (!tbody) return;
 
-  tbody.innerHTML = '<tr><td colspan="5" class="text-center">Carregando usuarios...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6" class="text-center">Carregando usuarios...</td></tr>';
 
   try {
     const usuarios = (await listarUsuariosAcesso('aprovado,bloqueado'))
@@ -2488,16 +2609,32 @@ async function renderUsuariosAcesso(usuarioLogado = obterUsuarioLogado()) {
     usuarios.forEach(u => {
       const ativo = (u.status || 'aprovado') === 'aprovado' && u.ativo !== false;
       const isAtual = normalizarChave(u.usuario) === normalizarChave(usuarioLogado?.usuario);
+      const perfilAtual = perfilUsuarioNormalizado(u.perfil);
       const podeCadastrar = u.podeCadastrar !== false;
       const podeRelatorios = u.podeRelatorios !== false;
+      const botoesPerfil = ['admin', 'assistente', 'motorista'].map(perfil => {
+        const atual = perfilAtual === perfil;
+        const desabilitado = atual || (isAtual && perfil !== 'admin');
+        return `<button class="permission-toggle ${atual ? 'allowed' : 'blocked'}" ${desabilitado ? 'disabled' : ''} onclick="alterarPerfilUsuarioAcesso(${Number(u.id)}, '${perfil}')">${perfilLabelSistema(perfil)}</button>`;
+      }).join('');
+      const permissoes = perfilAtual === 'admin'
+        ? '<span class="permission-pill allowed">Acesso total de administrador</span>'
+        : perfilAtual === 'motorista'
+          ? '<span class="permission-pill blocked">Acesso apenas do motorista</span>'
+          : `
+            <button class="permission-toggle ${podeCadastrar ? 'allowed' : 'blocked'}" onclick="alternarPermissaoUsuarioAcesso(${Number(u.id)}, ${!podeCadastrar}, ${podeRelatorios})">Cadastros</button>
+            <button class="permission-toggle ${podeRelatorios ? 'allowed' : 'blocked'}" onclick="alternarPermissaoUsuarioAcesso(${Number(u.id)}, ${podeCadastrar}, ${!podeRelatorios})">Relatorios</button>
+          `;
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><strong>${escapeHtml(u.nome || '-')}</strong><small class="cell-sub">${escapeHtml(u.usuario || '-')}</small></td>
-        <td><span class="badge badge-info">${escapeHtml(perfilLabelSistema(u.perfil))}</span></td>
+        <td>
+          <span class="badge badge-info">${escapeHtml(perfilLabelSistema(u.perfil))}</span>
+          <div class="permission-actions role-actions">${botoesPerfil}</div>
+        </td>
         <td>
           <div class="permission-actions">
-            <button class="permission-toggle ${podeCadastrar ? 'allowed' : 'blocked'}" onclick="alternarPermissaoUsuarioAcesso(${Number(u.id)}, ${!podeCadastrar}, ${podeRelatorios})">Cadastros</button>
-            <button class="permission-toggle ${podeRelatorios ? 'allowed' : 'blocked'}" onclick="alternarPermissaoUsuarioAcesso(${Number(u.id)}, ${podeCadastrar}, ${!podeRelatorios})">Relatorios</button>
+            ${permissoes}
           </div>
         </td>
         <td>${formatarDataDashboard(u.aprovadoEm || u.criadoEm)}</td>
@@ -2510,6 +2647,16 @@ async function renderUsuariosAcesso(usuarioLogado = obterUsuarioLogado()) {
     });
   } catch (error) {
     tbody.innerHTML = `<tr><td colspan="6" class="text-center">${escapeHtml(error.message)}</td></tr>`;
+  }
+}
+
+async function alterarPerfilUsuarioAcesso(id, perfil) {
+  try {
+    await atualizarPerfilAcesso(id, perfil);
+    notificar(`Usuario definido como ${perfilLabelSistema(perfil)}.`, 'success');
+    await renderUsuariosAcesso();
+  } catch (error) {
+    notificar(error.message, 'error');
   }
 }
 

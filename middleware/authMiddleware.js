@@ -17,7 +17,7 @@ function exigirAutenticacao(req, res, next) {
 }
 
 function exigirAdmin(req, res, next) {
-  if (!['admin', 'administrador'].includes(String(req.usuario?.perfil || '').toLowerCase())) {
+  if (!['admin', 'administrador', 'adm'].includes(String(req.usuario?.perfil || '').toLowerCase())) {
     return res.status(403).json({ error: 'Somente administrador pode realizar esta acao.' });
   }
 

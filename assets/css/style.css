@@ -2005,6 +2005,16 @@ body {
   filter: brightness(.97);
 }
 
+.permission-toggle:disabled {
+  cursor: default;
+  opacity: .72;
+  filter: none;
+}
+
+.role-actions {
+  margin-top: 8px;
+}
+
 .report-filter-card {
   margin-bottom: 18px;
 }

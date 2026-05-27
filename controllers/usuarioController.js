@@ -2,7 +2,7 @@ const db = require('../config/db');
 const { hashPassword, verifyPassword } = require('../utils/password');
 const { signToken } = require('../utils/token');
 
-const PERFIS = ['admin', 'operacional', 'motorista'];
+const PERFIS = ['admin', 'assistente', 'motorista'];
 const STATUS = ['pendente', 'aprovado', 'recusado', 'bloqueado'];
 
 let tableReadyPromise = null;
@@ -13,6 +13,8 @@ function normalizarUsuario(usuario) {
 
 function normalizarPerfil(perfil) {
   const normalizado = String(perfil || '').trim().toLowerCase();
+  if (['administrador', 'adm'].includes(normalizado)) return 'admin';
+  if (normalizado === 'operacional') return 'assistente';
   return PERFIS.includes(normalizado) ? normalizado : 'motorista';
 }
 
@@ -42,7 +44,7 @@ function usuarioPublico(row) {
 }
 
 function usuarioEhAdmin(usuario) {
-  return ['admin', 'administrador'].includes(String(usuario?.perfil || '').toLowerCase());
+  return normalizarPerfil(usuario?.perfil) === 'admin';
 }
 
 function permissaoPadrao(perfil, permissao) {
@@ -82,7 +84,7 @@ async function garantirTabelaUsuarios() {
         criado_em TIMESTAMP NOT NULL DEFAULT NOW(),
         atualizado_em TIMESTAMP NOT NULL DEFAULT NOW(),
         CONSTRAINT chk_perfil_gestao_pneu
-          CHECK (perfil IN ('admin', 'operacional', 'motorista')),
+          CHECK (perfil IN ('admin', 'assistente', 'motorista')),
         CONSTRAINT chk_status_gestao_pneu
           CHECK (status IN ('pendente', 'aprovado', 'recusado', 'bloqueado'))
       );
@@ -101,6 +103,21 @@ async function garantirTabelaUsuarios() {
 
       ALTER TABLE gestao_de_pneu
       ADD COLUMN IF NOT EXISTS pode_relatorios BOOLEAN NOT NULL DEFAULT TRUE;
+
+      ALTER TABLE gestao_de_pneu
+      DROP CONSTRAINT IF EXISTS chk_perfil_gestao_pneu;
+
+      UPDATE gestao_de_pneu
+      SET perfil = 'admin'
+      WHERE perfil IN ('administrador', 'adm');
+
+      UPDATE gestao_de_pneu
+      SET perfil = 'assistente'
+      WHERE perfil = 'operacional';
+
+      ALTER TABLE gestao_de_pneu
+      ADD CONSTRAINT chk_perfil_gestao_pneu
+      CHECK (perfil IN ('admin', 'assistente', 'motorista'));
     `);
   }
 
@@ -135,7 +152,7 @@ async function cadastrar(req, res) {
     );
 
     const primeiroAdmin = Number(adminCount.rows[0]?.total || 0) === 0;
-    const perfil = primeiroAdmin ? 'admin' : (perfilSolicitado === 'admin' ? 'operacional' : perfilSolicitado);
+    const perfil = primeiroAdmin ? 'admin' : (perfilSolicitado === 'admin' ? 'assistente' : perfilSolicitado);
     const status = primeiroAdmin ? 'aprovado' : 'pendente';
     const senhaHash = hashPassword(senha);
     const podeCadastrar = primeiroAdmin || permissaoPadrao(perfil, 'cadastro');
@@ -412,10 +429,20 @@ async function atualizarUsuario(req, res) {
     if (Number(req.usuario.id) === Number(id) && status !== 'aprovado') {
       return res.status(400).json({ error: 'Voce nao pode bloquear seu proprio acesso.' });
     }
+    if (Number(req.usuario.id) === Number(id) && perfil !== 'admin') {
+      return res.status(400).json({ error: 'Voce nao pode retirar sua propria permissao de administrador.' });
+    }
 
     const update = await db.query(`
       UPDATE gestao_de_pneu
-      SET nome = $1, usuario = $2, perfil = $3, status = $4, atualizado_em = NOW()
+      SET
+        nome = $1,
+        usuario = $2,
+        perfil = $3,
+        status = $4,
+        pode_cadastrar = CASE WHEN $3 = 'motorista' THEN FALSE WHEN $3 = 'admin' THEN TRUE ELSE pode_cadastrar END,
+        pode_relatorios = CASE WHEN $3 = 'motorista' THEN FALSE WHEN $3 = 'admin' THEN TRUE ELSE pode_relatorios END,
+        atualizado_em = NOW()
       WHERE id = $5
       RETURNING id, nome, usuario, perfil, status, pode_cadastrar, pode_relatorios, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
     `, [nome, usuario, perfil, status, id]);
@@ -428,6 +455,37 @@ async function atualizarUsuario(req, res) {
     }
     console.error('Erro ao atualizar usuario:', error);
     return res.status(500).json({ error: 'Erro interno ao atualizar usuario.' });
+  }
+}
+
+async function atualizarPerfilUsuario(req, res) {
+  try {
+    await garantirTabelaUsuarios();
+
+    const id = Number(req.params.id);
+    const perfil = normalizarPerfil(req.body.perfil);
+
+    if (!id) return res.status(400).json({ error: 'Usuario invalido.' });
+    if (Number(req.usuario.id) === Number(id) && perfil !== 'admin') {
+      return res.status(400).json({ error: 'Voce nao pode retirar sua propria permissao de administrador.' });
+    }
+
+    const update = await db.query(`
+      UPDATE gestao_de_pneu
+      SET
+        perfil = $1,
+        pode_cadastrar = CASE WHEN $1 = 'motorista' THEN FALSE WHEN $1 = 'admin' THEN TRUE ELSE pode_cadastrar END,
+        pode_relatorios = CASE WHEN $1 = 'motorista' THEN FALSE WHEN $1 = 'admin' THEN TRUE ELSE pode_relatorios END,
+        atualizado_em = NOW()
+      WHERE id = $2
+      RETURNING id, nome, usuario, perfil, status, pode_cadastrar, pode_relatorios, criado_em, atualizado_em, aprovado_em, aprovado_por, recusado_em, ultimo_login
+    `, [perfil, id]);
+
+    if (!update.rows.length) return res.status(404).json({ error: 'Usuario nao encontrado.' });
+    return res.json(usuarioPublico(update.rows[0]));
+  } catch (error) {
+    console.error('Erro ao atualizar perfil:', error);
+    return res.status(500).json({ error: 'Erro interno ao atualizar perfil.' });
   }
 }
 
@@ -507,6 +565,7 @@ module.exports = {
   atualizarStatusUsuario,
   criarUsuarioDireto,
   atualizarUsuario,
+  atualizarPerfilUsuario,
   atualizarPermissoes,
   alterarSenha,
   excluirUsuario
