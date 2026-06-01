@@ -30,6 +30,8 @@ function signToken(usuario, ttlSeconds = DEFAULT_TTL_SECONDS) {
     nome: usuario.nome,
     usuario: usuario.usuario,
     perfil: usuario.perfil,
+    podeCadastrar: usuario.podeCadastrar,
+    podeRelatorios: usuario.podeRelatorios,
     exp: Math.floor(Date.now() / 1000) + ttlSeconds
   }));
   const data = `${header}.${payload}`;

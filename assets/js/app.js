@@ -110,6 +110,20 @@ function normalizarMovimentacao(m) {
   };
 }
 
+function normalizarTipoVeiculo(valor) {
+  const tipo = String(valor || '').trim();
+  const mapa = {
+    '0': 'Cavalo',
+    '1': 'Cavalo',
+    '2': 'Carreta',
+    '3': 'Reboque',
+    '4': 'Bitrem',
+    '5': 'Vanderleia',
+    '6': 'Truck'
+  };
+  return mapa[tipo] || tipo || 'Cavalo';
+}
+
 function normalizarVeiculo(v) {
   return {
     ...v,
@@ -117,7 +131,7 @@ function normalizarVeiculo(v) {
     placa: String(v.placa || '').trim(),
     marca: String(v.marca || ''),
     modelo: String(v.modelo || ''),
-    tipo: String(v.tipo || 'Cavalo'),
+    tipo: normalizarTipoVeiculo(v.tipo),
     ano: v.ano || '',
     motorista: v.motorista || ''
   };
@@ -212,6 +226,37 @@ async function apiExcluirMotorista(cpf) {
     method: 'DELETE'
   });
   if (!res.ok) throw new Error('Erro ao excluir motorista');
+  return true;
+}
+
+async function apiSalvarVeiculo(veiculo) {
+  const res = await fetch(`${API_URL}/veiculos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(veiculo)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Erro ao salvar veiculo no banco');
+  return data;
+}
+
+async function apiAtualizarVeiculo(id, veiculo) {
+  const res = await fetch(`${API_URL}/veiculos/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(veiculo)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Erro ao atualizar veiculo no banco');
+  return data;
+}
+
+async function apiExcluirVeiculo(id) {
+  const res = await fetch(`${API_URL}/veiculos/${encodeURIComponent(id)}`, {
+    method: 'DELETE'
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Erro ao excluir veiculo no banco');
   return true;
 }
 
@@ -811,7 +856,7 @@ function initVeiculos() {
   renderVeiculos();
 }
 
-function salvarVeiculo() {
+function salvarVeiculoLocal() {
   const placa = getVal('veiculoPlaca').toUpperCase(), marca = getVal('veiculoMarca'),
     modelo = getVal('veiculoModelo'), tipo = getVal('veiculoTipo'),
     ano = getVal('veiculoAno'), motorista = getVal('veiculoMotorista');
@@ -902,10 +947,77 @@ function renderVeiculos() {
   }
 }
 
-function excluirVeiculo(id) {
+function excluirVeiculoLocal(id) {
   if (!confirm('Excluir este veículo?')) return;
   saveData(KEYS.VEICULOS, getData(KEYS.VEICULOS).filter(v => v.id !== id));
   renderVeiculos();
+}
+
+async function salvarVeiculo() {
+  const placa = getVal('veiculoPlaca').toUpperCase();
+  const marca = getVal('veiculoMarca');
+  const modelo = getVal('veiculoModelo');
+  const tipo = getVal('veiculoTipo');
+  const ano = getVal('veiculoAno');
+  const motorista = getVal('veiculoMotorista');
+
+  if (!placa || !marca || !modelo || !tipo) {
+    alert('Preencha Placa, Marca, Modelo e Tipo.');
+    return;
+  }
+
+  const botao = $('btnSalvarVeiculo');
+  if (!setBotaoCarregando(botao, true, veiculoEmEdicao ? 'Atualizando...' : 'Salvando...')) return;
+
+  try {
+    const veiculos = getData(KEYS.VEICULOS);
+
+    if (veiculoEmEdicao) {
+      const idx = veiculos.findIndex(v => v.id === veiculoEmEdicao);
+      if (idx < 0) throw new Error('Veiculo nao encontrado para edicao.');
+      if (veiculos.some(v => v.id !== veiculoEmEdicao && normalizarChave(v.placa) === normalizarChave(placa))) {
+        throw new Error('Veiculo com esta placa ja existe.');
+      }
+
+      const placaAnterior = veiculos[idx].placa;
+      const veiculoAtualizado = normalizarVeiculo(await apiAtualizarVeiculo(veiculoEmEdicao, { placa, marca, modelo, tipo, ano, motorista }));
+      veiculos[idx] = { ...veiculos[idx], ...veiculoAtualizado, dataAtualizacao: new Date().toLocaleDateString('pt-BR') };
+      if (placaAnterior && placaAnterior !== placa) atualizarPlacaRelacionada(placaAnterior, placa);
+      saveData(KEYS.VEICULOS, veiculos);
+      notificar('Veiculo atualizado com sucesso.', 'success');
+    } else {
+      if (veiculos.some(v => normalizarChave(v.placa) === normalizarChave(placa))) {
+        throw new Error('Veiculo com esta placa ja existe.');
+      }
+
+      const veiculoCriado = normalizarVeiculo(await apiSalvarVeiculo({ placa, marca, modelo, tipo, ano, motorista }));
+      veiculos.push({ ...veiculoCriado, dataCadastro: veiculoCriado.dataCadastro || new Date().toLocaleDateString('pt-BR') });
+      saveData(KEYS.VEICULOS, veiculos);
+      notificar('Veiculo cadastrado com sucesso.', 'success');
+    }
+
+    limparFormularioVeiculo();
+    await sincronizarDadosBanco(['veiculos']).catch(() => {});
+    renderVeiculos();
+    document.querySelector('.tab-btn[data-target="tab-lista"]')?.click();
+  } catch (error) {
+    notificar(error.message || 'Erro ao salvar veiculo.', 'error');
+  } finally {
+    setBotaoCarregando(botao, false);
+  }
+}
+
+async function excluirVeiculo(id) {
+  if (!confirm('Excluir este veiculo?')) return;
+  try {
+    await apiExcluirVeiculo(id);
+    saveData(KEYS.VEICULOS, getData(KEYS.VEICULOS).filter(v => v.id !== id));
+    await sincronizarDadosBanco(['veiculos']).catch(() => {});
+    renderVeiculos();
+    notificar('Veiculo excluido com sucesso.', 'success');
+  } catch (error) {
+    notificar(error.message || 'Erro ao excluir veiculo.', 'error');
+  }
 }
 
 /* === DIAGRAMA DE PNEUS === */
