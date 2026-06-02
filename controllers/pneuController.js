@@ -146,22 +146,25 @@ class PneuController {
       const marca = String(pneu.marca || '').trim();
       const modelo = String(pneu.modelo || '').trim();
       const dataCompra = pneu.dataCompra || null;
+      const valorCompraRaw = String(pneu.valorCompra ?? '').trim();
+      const kmCompraRaw = String(pneu.kmCompra ?? '').trim();
 
       if (!codPneu || !numPneu) {
         return res.status(400).json({ error: 'Codigo e numero do pneu sao obrigatorios.' });
       }
-      if (!marca || !modelo || !dataCompra) {
-        return res.status(400).json({ error: 'Marca, modelo e data da compra sao obrigatorios.' });
+      if (!marca || !modelo || !valorCompraRaw || !kmCompraRaw) {
+        return res.status(400).json({ error: 'Numero do pneu, marca, modelo, KM na compra e valor da compra sao obrigatorios.' });
       }
 
       const profundidade = Number(pneu.profundidadeAtual || pneu.profundidadeInicial || 0) || null;
-      const valorCompra = Number(pneu.valorCompra || 0) || null;
-      const kmCompra = Number(pneu.kmCompra || 0) || null;
+      const valorCompra = Number(valorCompraRaw);
+      const kmCompra = Number(kmCompraRaw);
       const fornecedorCompra = String(pneu.fornecedorCompra || '').trim();
       const notaFiscalCompra = String(pneu.notaFiscalCompra || '').trim();
       const observacaoCompra = String(pneu.observacaoCompra || '').trim();
 
-      if ((profundidade !== null && (profundidade < 0 || profundidade > 40)) ||
+      if (!Number.isFinite(valorCompra) || !Number.isFinite(kmCompra) ||
+        (profundidade !== null && (profundidade < 0 || profundidade > 40)) ||
         (valorCompra !== null && valorCompra < 0) ||
         (kmCompra !== null && kmCompra < 0)) {
         return res.status(400).json({ error: 'Valores numericos invalidos no cadastro do pneu.' });
