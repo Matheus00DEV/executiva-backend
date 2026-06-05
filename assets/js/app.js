@@ -1,4 +1,4 @@
-/* ============================================
+﻿/* ============================================
    EXECUTIVA AGRONEGÓCIOS - APP v3.0
    Sistema de Gestão de Pneus e Frota
 ============================================ */
@@ -11,13 +11,20 @@ const KEYS = {
   MOTORISTAS: 'motoristas',
   CONFERENCIAS: 'conferencias_pneus',
   RECAPAGENS: 'recapagens_custos',
+  ACERTOS: 'acertos_viagem',
+  MANUTENCOES: 'manutencoes_revisoes',
+  DESPESAS: 'despesas_operacionais',
+  LANCAMENTOS_ACERTO: 'lancamentos_acerto_viagem',
+  SOLICITACOES_OPERACIONAIS: 'solicitacoes_operacionais',
   USER: 'usuarioLogado',
   USERS: 'usuariosSistema',
   ACCESS_REQUESTS: 'solicitacoesAcessoSistema'
 };
-const API_URL = ['localhost', '127.0.0.1'].includes(window.location.hostname)
-  ? 'http://localhost:3000/api'
-  : 'https://executiva-backend.onrender.com/api';
+const API_URL = window.EXECUTIVA_API_URL || (
+  ['localhost', '127.0.0.1'].includes(window.location.hostname)
+    ? 'http://localhost:3000/api'
+    : `${window.location.origin}/api`
+);
 const MAX_TABLE_ROWS = 300;
 
 function obterTokenSessao() {
@@ -161,7 +168,9 @@ function normalizarDados(resource, dados) {
 
 async function fetchApiData(resource) {
   try {
-    const res = await fetch(`${API_URL}/${resource}`);
+    const res = await fetch(`${API_URL}/${resource}`, {
+      headers: authHeaders()
+    });
     if (!res.ok) throw new Error(`Erro ao buscar ${resource}`);
     return await res.json();
   } catch (e) {
@@ -192,7 +201,9 @@ async function sincronizarDadosBanco(resources = null) {
 
 async function fetchMotoristas() {
   try {
-    const res = await fetch(`${API_URL}/motoristas`);
+    const res = await fetch(`${API_URL}/motoristas`, {
+      headers: authHeaders()
+    });
     if (!res.ok) throw new Error('Erro ao buscar motoristas');
     return await res.json();
   } catch (e) {
@@ -204,7 +215,7 @@ async function fetchMotoristas() {
 async function apiSalvarMotorista(motorista) {
   const res = await fetch(`${API_URL}/motoristas`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(motorista)
   });
   if (!res.ok) throw new Error('Erro ao salvar motorista');
@@ -214,7 +225,7 @@ async function apiSalvarMotorista(motorista) {
 async function apiAtualizarMotorista(cpf, motorista) {
   const res = await fetch(`${API_URL}/motoristas/${cpf}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(motorista)
   });
   if (!res.ok) throw new Error('Erro ao atualizar motorista');
@@ -223,7 +234,8 @@ async function apiAtualizarMotorista(cpf, motorista) {
 
 async function apiExcluirMotorista(cpf) {
   const res = await fetch(`${API_URL}/motoristas/${cpf}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: authHeaders()
   });
   if (!res.ok) throw new Error('Erro ao excluir motorista');
   return true;
@@ -232,7 +244,7 @@ async function apiExcluirMotorista(cpf) {
 async function apiSalvarVeiculo(veiculo) {
   const res = await fetch(`${API_URL}/veiculos`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(veiculo)
   });
   const data = await res.json().catch(() => ({}));
@@ -243,7 +255,7 @@ async function apiSalvarVeiculo(veiculo) {
 async function apiAtualizarVeiculo(id, veiculo) {
   const res = await fetch(`${API_URL}/veiculos/${encodeURIComponent(id)}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(veiculo)
   });
   const data = await res.json().catch(() => ({}));
@@ -253,7 +265,8 @@ async function apiAtualizarVeiculo(id, veiculo) {
 
 async function apiExcluirVeiculo(id) {
   const res = await fetch(`${API_URL}/veiculos/${encodeURIComponent(id)}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: authHeaders()
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Erro ao excluir veiculo no banco');
@@ -263,7 +276,7 @@ async function apiExcluirVeiculo(id) {
 async function apiSalvarPneu(pneu) {
   const res = await fetch(`${API_URL}/pneus`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(pneu)
   });
   const data = await res.json().catch(() => ({}));
@@ -274,7 +287,7 @@ async function apiSalvarPneu(pneu) {
 async function apiSalvarMovimentacao(movimentacao) {
   const res = await fetch(`${API_URL}/movimentacoes`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(movimentacao)
   });
   const data = await res.json().catch(() => ({}));
@@ -285,11 +298,21 @@ async function apiSalvarMovimentacao(movimentacao) {
 async function apiAtualizarMovimentacao(id, movimentacao) {
   const res = await fetch(`${API_URL}/movimentacoes/${encodeURIComponent(id)}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(movimentacao)
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Erro ao atualizar movimentacao no banco');
+  return data;
+}
+
+async function apiExcluirMovimentacao(id) {
+  const res = await fetch(`${API_URL}/movimentacoes/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: authHeaders()
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Erro ao apagar movimentacao no banco');
   return data;
 }
 
@@ -388,9 +411,36 @@ function normalizarChave(valor) {
   return String(valor || '').trim().toUpperCase();
 }
 
+function normalizarPlaca(valor) {
+  return normalizarChave(valor).replace(/[^A-Z0-9]/g, '');
+}
+
+function placaCadastrada(valor) {
+  const chave = normalizarPlaca(valor);
+  if (!chave) return '';
+  const veiculo = getData(KEYS.VEICULOS).find(item => normalizarPlaca(item.placa) === chave);
+  return veiculo?.placa || '';
+}
+
+function placaExisteCadastro(valor) {
+  return !!placaCadastrada(valor);
+}
+
+function motoristaCadastrado(valor) {
+  const chave = normalizarChave(valor);
+  if (!chave) return '';
+  const motorista = getData(KEYS.MOTORISTAS).find(item => normalizarChave(item.nome) === chave);
+  return motorista?.nome || '';
+}
+
+function motoristaExisteCadastro(valor) {
+  return !!motoristaCadastrado(valor);
+}
+
 function validarNumeroFaixa(valor, minimo, maximo, nomeCampo, obrigatorio = false) {
   const bruto = String(valor ?? '').trim();
   if (!bruto && !obrigatorio) return null;
+  if (!bruto && obrigatorio) return `${nomeCampo} é obrigatório.`;
   const numero = Number(bruto);
   if (!Number.isFinite(numero)) return `${nomeCampo} precisa ser um número válido.`;
   if (numero < minimo || numero > maximo) return `${nomeCampo} deve ficar entre ${minimo} e ${maximo}.`;
@@ -402,7 +452,6 @@ function validarCadastroPneu(pneu, pneus) {
   if (!pneu.numPneu) erros.push('Informe o Nº de Fogo do pneu.');
   if (!pneu.marca) erros.push('Informe a marca do pneu.');
   if (!pneu.modelo) erros.push('Informe o modelo do pneu.');
-  if (!pneu.dataCompra) erros.push('Informe a data da compra.');
 
   const chave = normalizarChave(pneu.numPneu);
   if (chave && pneus.some(p => normalizarChave(p.numPneu) === chave)) {
@@ -414,8 +463,8 @@ function validarCadastroPneu(pneu, pneus) {
   }
 
   [
-    validarNumeroFaixa(getVal('valorCompra'), 0, 1000000, 'Valor de compra'),
-    validarNumeroFaixa(getVal('kmCompra'), 0, 5000000, 'KM na compra')
+    validarNumeroFaixa(getVal('valorCompra'), 0, 1000000, 'Valor de compra', true),
+    validarNumeroFaixa(getVal('kmCompra'), 0, 5000000, 'KM na compra', true)
   ].filter(Boolean).forEach(erro => erros.push(erro));
 
   return erros;
@@ -465,6 +514,12 @@ function validarMovimentacaoFormulario(mov, pneu, editando = false) {
 
   if (tipo === 'Baixa' && kmVeiculo <= 0) {
     erros.push('Informe o KM final para baixar o pneu.');
+  }
+
+  const placaMov = normalizarChave(mov.veiculoAtual);
+  if (mov.veiculoAtual && !['ESTOQUE', '-'].includes(placaMov) && !placaExisteCadastro(mov.veiculoAtual)) {
+    atualizarEstadoCampoPesquisavel($('veiculoAtual'));
+    erros.push(`A placa ${mov.veiculoAtual} nao existe no cadastro de veiculos.`);
   }
 
   if (tipo === 'Recapagem') {
@@ -564,9 +619,213 @@ function exigirLogin() {
   return usuario;
 }
 
+function iconeLucide(nome, fallback = '') {
+  const seguro = escapeHtml(String(nome || 'circle'));
+  const textoFallback = escapeHtml(String(fallback || '').slice(0, 3));
+  return `<i data-lucide="${seguro}" aria-hidden="true"></i>${textoFallback ? `<span class="nav-fallback">${textoFallback}</span>` : ''}`;
+}
+
+function ativarIconesInterface() {
+  if (!document.querySelector('[data-lucide]')) return;
+
+  const aplicar = () => {
+    if (!window.lucide?.createIcons) return;
+    window.lucide.createIcons({
+      attrs: {
+        'stroke-width': 2.1,
+        'aria-hidden': 'true'
+      }
+    });
+    document.documentElement.classList.add('lucide-loaded');
+  };
+
+  if (window.lucide?.createIcons) {
+    aplicar();
+    return;
+  }
+
+  if (document.getElementById('lucideIconLibrary')) return;
+  const script = document.createElement('script');
+  script.id = 'lucideIconLibrary';
+  script.src = 'https://unpkg.com/lucide@latest/dist/umd/lucide.min.js';
+  script.defer = true;
+  script.onload = aplicar;
+  document.head.appendChild(script);
+}
+
+function prepararIdentidadeSidebar() {
+  document.querySelectorAll('.sidebar-header').forEach(header => {
+    header.innerHTML = `
+      <div class="brand-lockup">
+        <img class="brand-logo" src="../assets/img/executiva-logo.svg" alt="Executiva Agronegócios">
+        <div class="brand-copy">
+          <h2>EXECUTIVA</h2>
+          <small>AGRONEGÓCIOS</small>
+        </div>
+      </div>
+      <button class="sidebar-collapse" type="button" aria-label="Recolher menu">${iconeLucide('chevron-left', '<')}</button>
+      <div class="sidebar-search">
+        ${iconeLucide('search', 'PS')}
+        <input type="search" placeholder="Pesquisar" aria-label="Pesquisar no menu">
+      </div>
+    `;
+  });
+}
+
+function prepararTopoSistema(usuario) {
+  const existente = document.querySelector('.app-topbar');
+  if (document.body.classList.contains('driver-body')) {
+    if (existente) existente.remove();
+    return;
+  }
+
+  const perfil = perfilLabelSistema(usuario.perfil);
+  const nome = escapeHtml(usuario.nome || usuario.usuario || 'Usuário');
+  const subtitulo = perfil ? `<span>${escapeHtml(perfil)}</span>` : '';
+  const html = `
+    <div class="topbar-welcome">
+      <strong>Boas vindas, ${nome}</strong>
+      ${subtitulo}
+    </div>
+    <div class="topbar-company">
+      <small>Selecione a corporação</small>
+      <button type="button">Executiva Agronegócios ${iconeLucide('chevron-down', 'v')}</button>
+    </div>
+    <div class="topbar-actions" aria-label="Ações do sistema">
+      <button type="button" title="Modo escuro">${iconeLucide('moon', 'MO')}</button>
+      <button type="button" title="Suporte">${iconeLucide('headphones', 'SP')}</button>
+      <button type="button" title="Notificações">${iconeLucide('bell', 'NT')}</button>
+      <span class="topbar-avatar">${escapeHtml(String(usuario.nome || usuario.usuario || 'U').trim().charAt(0).toUpperCase() || 'U')}</span>
+    </div>
+  `;
+
+  if (existente) {
+    existente.innerHTML = html;
+  } else {
+    const topbar = document.createElement('header');
+    topbar.className = 'app-topbar';
+    topbar.innerHTML = html;
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) sidebar.insertAdjacentElement('afterend', topbar);
+    else document.body.prepend(topbar);
+  }
+}
+
+function acaoNovoRegistro() {
+  const abaCadastro = document.querySelector('.tab-btn[data-target="tab-cadastro"]');
+  if (abaCadastro) {
+    abaCadastro.click();
+    return;
+  }
+  const primeiroForm = document.querySelector('form, .form-control');
+  if (primeiroForm?.scrollIntoView) primeiroForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function acaoAbrirAba(target) {
+  const aba = document.querySelector(`.tab-btn[data-target="${target}"]`);
+  if (aba) aba.click();
+}
+
+function acaoFiltrarPagina() {
+  const filtro = document.querySelector('#buscaVeiculo, #buscaPneu, #buscaMovimentacao, .filtros-row .form-control, input[type="search"], input[placeholder*="Buscar"]');
+  if (filtro?.focus) filtro.focus();
+}
+
+function prepararAcoesPagina() {
+  if (document.body.classList.contains('driver-body')) return;
+  const header = document.querySelector('.main-content .page-header');
+  if (!header || document.querySelector('.page-actions-toolbar')) return;
+  const acoesPorPagina = {
+    'motoristas-page': [
+      { label: 'Buscar', icon: 'list-filter', action: 'acaoFiltrarPagina()' },
+      { label: 'Atualizar', icon: 'refresh-cw', action: 'location.reload()' },
+      { label: 'Novo motorista', icon: 'user-plus', action: 'acaoNovoRegistro()' }
+    ],
+    'veiculos-page': [
+      { label: 'Filtrar', icon: 'list-filter', action: 'acaoFiltrarPagina()' },
+      { label: 'Atualizar', icon: 'refresh-cw', action: 'location.reload()' },
+      { label: 'Novo veiculo', icon: 'plus', action: 'acaoNovoRegistro()' }
+    ],
+    'pneus-page': [
+      { label: 'Painel', icon: 'gauge', action: "acaoAbrirAba('tab-painel')" },
+      { label: 'Novo pneu', icon: 'plus', action: "acaoAbrirAba('tab-cadastro')" },
+      { label: 'Lista', icon: 'list-filter', action: "acaoAbrirAba('tab-lista')" },
+      { label: 'Atualizar', icon: 'refresh-cw', action: 'location.reload()' }
+    ],
+    'movimentacao-page': [
+      { label: 'Filtrar', icon: 'list-filter', action: 'acaoFiltrarPagina()' },
+      { label: 'Atualizar', icon: 'refresh-cw', action: 'location.reload()' },
+      { label: 'Nova movimentacao', icon: 'repeat-2', action: 'acaoNovoRegistro()' }
+    ],
+    'acerto-viagem-page': [
+      { label: 'Filtrar', icon: 'list-filter', action: "document.getElementById('filtroAcertoNumero')?.focus()" },
+      { label: 'Novo acerto', icon: 'plus', href: 'acerto-viagem-detalhe.html' },
+      { label: 'Atualizar', icon: 'refresh-cw', action: 'location.reload()' }
+    ],
+    'acerto-viagem-detalhe-page': [
+      { label: 'Consulta', icon: 'list-filter', href: 'acerto-viagem.html' },
+      { label: 'Novo acerto', icon: 'plus', action: 'novoAcertoViagem()' },
+      { label: 'Salvar', icon: 'save', action: "document.getElementById('formAcertoViagem')?.requestSubmit()" },
+      { label: 'Lancamento', icon: 'receipt', action: "document.getElementById('formLancamentoAcerto')?.scrollIntoView({behavior:'smooth',block:'start'})" }
+    ],
+    'despesas-page': [
+      { label: 'Pendentes', icon: 'inbox', action: "document.getElementById('tabelaDespesas')?.scrollIntoView({behavior:'smooth',block:'start'})" },
+      { label: 'Abrir acerto', icon: 'route', href: 'acerto-viagem.html' },
+      { label: 'Atualizar', icon: 'refresh-cw', action: 'location.reload()' }
+    ],
+    'solicitacoes-page': [
+      { label: 'Pendentes', icon: 'clipboard-list', action: "document.getElementById('tabelaSolicitacoes')?.scrollIntoView({behavior:'smooth',block:'start'})" },
+      { label: 'Abrir acerto', icon: 'route', href: 'acerto-viagem.html' },
+      { label: 'Atualizar', icon: 'refresh-cw', action: 'location.reload()' }
+    ],
+    'manutencao-page': [
+      { label: 'Nova OS', icon: 'wrench', action: 'acaoNovoRegistro()' },
+      { label: 'Atualizar', icon: 'refresh-cw', action: 'location.reload()' }
+    ],
+    'relatorios-page': [
+      { label: 'Atualizar', icon: 'refresh-cw', action: 'location.reload()' }
+    ],
+    'financeiro-page': [
+      { label: 'DRE financeiro', icon: 'line-chart', action: "document.querySelector('.finance-hero-panel')?.scrollIntoView({behavior:'smooth',block:'start'})" },
+      { label: 'Acertos', icon: 'route', href: 'acerto-viagem.html' },
+      { label: 'Atualizar', icon: 'refresh-cw', action: 'location.reload()' }
+    ]
+  };
+  const acoes = acoesPorPagina[document.body.id] || [];
+  if (!acoes.length) return;
+  const toolbar = document.createElement('div');
+  toolbar.className = 'page-actions-toolbar';
+  toolbar.innerHTML = acoes.map(acao => {
+    const conteudo = `${iconeLucide(acao.icon, '')}<span>${escapeHtml(acao.label)}</span>`;
+    if (acao.href) return `<a class="toolbar-button" href="${escapeHtml(acao.href)}">${conteudo}</a>`;
+    return `<button type="button" onclick="${escapeHtml(acao.action)}">${conteudo}</button>`;
+  }).join('');
+  header.insertAdjacentElement('afterend', toolbar);
+}
+
+function alternarGrupoMenu(botao, event) {
+  if (event) event.stopPropagation();
+  const secao = botao?.closest('.nav-section');
+  if (!secao) return;
+  const abrir = !secao.classList.contains('is-open');
+  document.querySelectorAll('.sidebar-nav .nav-section.is-open').forEach(item => {
+    if (item !== secao) item.classList.remove('is-open');
+  });
+  secao.classList.toggle('is-open', abrir);
+  botao.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+}
+
 function atualizarUsuarioNaInterface(usuario) {
   if (!usuario) return;
+  const perfil = perfilUsuarioNormalizado(usuario.perfil);
+  const usarShellPadrao = !document.body.classList.contains('driver-body');
+  document.body.classList.remove('erp-ribbon-layout');
+  document.body.classList.toggle('emitai-shell-layout', usarShellPadrao);
+  document.body.classList.toggle('motorista-layout', perfil === 'motorista');
+  prepararIdentidadeSidebar();
   prepararMenuAdministrativo(usuario);
+  prepararTopoSistema(usuario);
+  prepararAcoesPagina();
   document.querySelectorAll('.sidebar-footer').forEach(footer => {
     let info = footer.querySelector('.sidebar-user');
     if (!info) {
@@ -575,9 +834,12 @@ function atualizarUsuarioNaInterface(usuario) {
       footer.prepend(info);
     }
     info.className = 'sidebar-user';
-    const perfil = perfilLabelSistema(usuario.perfil);
-    info.innerHTML = `<span>${perfil}</span><strong>${usuario.nome || usuario.usuario}</strong>`;
+    info.innerHTML = `<span>${perfilLabelSistema(usuario.perfil)}</span><strong>${usuario.nome || usuario.usuario}</strong>`;
+
+    const botaoSair = footer.querySelector('.btn-sair');
+    if (botaoSair) botaoSair.innerHTML = `${iconeLucide('log-out', 'SA')}<span>Sair</span>`;
   });
+  ativarIconesInterface();
 }
 
 function fazerLogout() {
@@ -616,14 +878,21 @@ function usuarioPodeRelatorios(usuario) {
 function exigirPerfil(usuario) {
   if (!usuario) return false;
   const perfil = perfilUsuarioNormalizado(usuario.perfil || 'admin');
-  if (document.body.id === 'configuracoes-page') return true;
-  if (paginaAtualEhMotorista()) return true;
+  const paginasAreaMotorista = ['motorista-app-page'];
+
   if (perfil === 'motorista') {
+    if (paginasAreaMotorista.includes(document.body.id)) return true;
     window.location.href = 'motorista-app.html';
     return false;
   }
 
-  if (document.body.id === 'relatorios-page' && !usuarioPodeRelatorios(usuario)) {
+  if (document.body.id === 'configuracoes-page') return true;
+  if (paginaAtualEhMotorista()) {
+    window.location.href = 'dashboard.html';
+    return false;
+  }
+
+  if (['relatorios-page', 'financeiro-page'].includes(document.body.id) && !usuarioPodeRelatorios(usuario)) {
     notificar('Seu acesso nao permite consultar relatorios.', 'error');
     window.location.href = 'dashboard.html';
     return false;
@@ -642,25 +911,144 @@ function prepararMenuAdministrativo(usuario) {
   const nav = document.querySelector('.sidebar-nav');
   if (!nav) return;
 
-  let linkConfig = nav.querySelector('[data-admin-settings]');
-  if (!linkConfig) {
-    linkConfig = document.createElement('a');
-    linkConfig.href = 'configuracoes.html';
-    linkConfig.dataset.adminSettings = '1';
-    linkConfig.innerHTML = '<span class="nav-icon">⚙️</span><span class="nav-text">Configurações</span>';
-    nav.appendChild(linkConfig);
+  const paginaAtual = (window.location.pathname.split('/').pop() || 'dashboard.html').toLowerCase();
+  const hashAtual = (window.location.hash || '').toLowerCase();
+  const itemMenuAtivo = item => {
+    const [hrefBase, hrefHash] = String(item.href || '').toLowerCase().split('#');
+    if (paginaAtual === 'acerto-viagem-detalhe.html' && hrefBase === 'acerto-viagem.html') return true;
+    if (paginaAtual !== hrefBase) return false;
+    if (hrefHash) return hashAtual === `#${hrefHash}`;
+    return !hashAtual;
+  };
+  const perfil = perfilUsuarioNormalizado(usuario?.perfil || 'assistente');
+  const itensAreaMotorista = [
+    { href: 'motorista-app.html', icon: 'clipboard-check', fallback: 'CF', text: 'Área do motorista' }
+  ];
+  const gruposAdmin = [
+    {
+      titulo: 'Home',
+      icon: 'home',
+      fallback: 'IN',
+      href: 'dashboard.html'
+    },
+    {
+      titulo: 'Frota',
+      icon: 'truck',
+      fallback: 'FR',
+      itens: [
+        { href: 'motoristas.html', icon: 'users', fallback: 'MO', text: 'Motoristas', permission: usuarioPodeCadastrar(usuario) },
+        { href: 'veiculos.html', icon: 'truck', fallback: 'VE', text: 'Veiculos', permission: usuarioPodeCadastrar(usuario) }
+      ]
+    },
+    {
+      titulo: 'Pneus',
+      icon: 'circle-dot',
+      fallback: 'PN',
+      itens: [
+        { href: 'pneus.html', icon: 'gauge', fallback: 'PN', text: 'Setor de pneus', permission: usuarioPodeCadastrar(usuario) },
+        { href: 'movimentacao.html', icon: 'repeat-2', fallback: 'MV', text: 'Movimentações' },
+        { href: 'relatorios.html', icon: 'bar-chart-3', fallback: 'RL', text: 'Relatórios de pneus', permission: usuarioPodeRelatorios(usuario) }
+      ]
+    },
+    {
+      titulo: 'Manutenção',
+      icon: 'wrench',
+      fallback: 'MN',
+      itens: [
+        { href: 'manutencao.html', icon: 'wrench', fallback: 'MN', text: 'Ordens e revisões' },
+        { href: 'solicitacoes.html', icon: 'clipboard-list', fallback: 'SL', text: 'Solicitações' }
+      ]
+    },
+    {
+      titulo: 'Viagens',
+      icon: 'route',
+      fallback: 'VG',
+      itens: [
+        { href: 'acerto-viagem.html', icon: 'route', fallback: 'AC', text: 'Acerto viagem' },
+        { href: 'despesas.html', icon: 'inbox', fallback: 'LX', text: 'Lançamentos do acerto' },
+        { href: 'solicitacoes.html', icon: 'clipboard-list', fallback: 'SL', text: 'Solicitações dos motoristas' },
+        { href: 'financeiro.html', icon: 'landmark', fallback: 'DR', text: 'DRE viagens', permission: usuarioPodeRelatorios(usuario) }
+      ]
+    },
+    {
+      titulo: 'Financeiro',
+      icon: 'landmark',
+      fallback: 'FI',
+      itens: [
+        { href: 'financeiro.html', icon: 'line-chart', fallback: 'DR', text: 'DRE financeiro', permission: usuarioPodeRelatorios(usuario) }
+      ]
+    },
+    {
+      titulo: 'Relatórios',
+      icon: 'bar-chart-3',
+      fallback: 'RL',
+      itens: [
+        { href: 'relatorios.html', icon: 'line-chart', fallback: 'RL', text: 'Relatórios', permission: usuarioPodeRelatorios(usuario) }
+      ]
+    },
+    {
+      titulo: 'Sistema',
+      icon: 'shield-check',
+      fallback: 'ST',
+      itens: [
+        { href: 'configuracoes.html', icon: 'settings', fallback: 'CF', text: 'Configuracoes' }
+      ]
+    }
+  ];
+  const gruposMotorista = [
+    {
+      titulo: 'Área do Motorista',
+      icon: 'user-check',
+      fallback: 'AM',
+      itens: itensAreaMotorista
+    }
+  ];
+  const grupos = perfil === 'motorista' ? gruposMotorista : gruposAdmin;
+
+  nav.innerHTML = grupos
+    .filter(grupo => grupo.permission !== false)
+    .map(grupo => {
+      const itens = (grupo.itens || []).filter(item => item.permission !== false);
+      const grupoAtivo = grupo.href ? itemMenuAtivo(grupo) : itens.some(itemMenuAtivo);
+      if (grupo.href) {
+        return `
+          <div class="nav-section nav-direct ${grupoAtivo ? 'is-active' : ''}">
+            <a href="${grupo.href}" class="nav-section-toggle ${grupoAtivo ? 'active' : ''}">
+              <span class="nav-group-icon">${iconeLucide(grupo.icon || 'circle', grupo.fallback || 'MN')}</span>
+              <span>${grupo.titulo}</span>
+            </a>
+          </div>`;
+      }
+      if (!itens.length) return '';
+      return `
+        <div class="nav-section ${grupoAtivo ? 'is-active is-open' : ''}">
+          <button class="nav-section-toggle" type="button" onclick="alternarGrupoMenu(this, event)" aria-expanded="${grupoAtivo ? 'true' : 'false'}">
+            <span class="nav-group-icon">${iconeLucide(grupo.icon || 'menu', grupo.fallback || 'MN')}</span>
+            <span>${grupo.titulo}</span>
+            <span class="nav-caret">${iconeLucide('chevron-right', '>')}</span>
+          </button>
+          <div class="nav-section-links" data-title="${escapeHtml(grupo.titulo)}">
+          ${itens.map(item => `
+            <a href="${item.href}" class="${itemMenuAtivo(item) ? 'active' : ''}">
+              <span class="nav-icon">${iconeLucide(item.icon || 'circle', item.fallback || item.icon)}</span>
+              <span class="nav-text">${item.text}</span>
+            </a>
+          `).join('')}
+          </div>
+        </div>`;
+    })
+    .join('');
+  if (!window.menuSetoresClickBound) {
+    document.addEventListener('click', event => {
+      if (event.target.closest?.('.sidebar-nav')) return;
+      document.querySelectorAll('.sidebar-nav .nav-section.is-open').forEach(secao => {
+        secao.classList.remove('is-open');
+        secao.querySelector('.nav-section-toggle')?.setAttribute('aria-expanded', 'false');
+      });
+    });
+    window.menuSetoresClickBound = true;
   }
-
-  linkConfig.style.display = '';
-  linkConfig.classList.toggle('active', document.body.id === 'configuracoes-page');
-
-  ['motoristas.html', 'veiculos.html', 'pneus.html'].forEach(href => {
-    const link = nav.querySelector(`a[href="${href}"]`);
-    if (link) link.style.display = usuarioPodeCadastrar(usuario) ? '' : 'none';
-  });
-
-  const linkRelatorios = nav.querySelector('a[href="relatorios.html"]');
-  if (linkRelatorios) linkRelatorios.style.display = usuarioPodeRelatorios(usuario) ? '' : 'none';
+  ativarIconesInterface();
 }
 
 /* === USUARIOS DO SISTEMA === */
@@ -1082,9 +1470,9 @@ function renderDiagrama(veiculo) {
   const htmlEixos = estruturaEixos.map(eixo => {
     return `
       <div class="diagrama-eixo-col ${eixo.tipo || ''}">
-        <div class="rodas-row rodas-top">${eixo.top.map(pos => renderRodaPneu(pos, pneuPorPosicao(eixo.nome, pos.codigo, pos.nomeLocal))).join('')}</div>
+        <div class="rodas-row rodas-top">${eixo.top.map(pos => renderRodaPneu(pos, pneuPorPosicao(eixo.nome, pos.codigo, pos.nomeLocal), 'top')).join('')}</div>
         <div class="eixo-label">${eixo.nome}</div>
-        <div class="rodas-row rodas-bottom">${eixo.bottom.map(pos => renderRodaPneu(pos, pneuPorPosicao(eixo.nome, pos.codigo, pos.nomeLocal))).join('')}</div>
+        <div class="rodas-row rodas-bottom">${eixo.bottom.map(pos => renderRodaPneu(pos, pneuPorPosicao(eixo.nome, pos.codigo, pos.nomeLocal), 'bottom')).join('')}</div>
       </div>`;
   }).join('');
 
@@ -1135,24 +1523,62 @@ function renderDiagrama(veiculo) {
 }
 
 function normalizarPosicaoPneu(valor) {
-  return String(valor || '')
+  const posicaoLegada = posicaoLegadaParaTexto(valor);
+  return String(posicaoLegada || valor || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/º/g, '')
     .replace(/º/g, '')
+    .replace(/[º°]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
     .toUpperCase();
 }
 
-function renderRodaPneu(pos, pneu) {
+function posicaoLegadaParaTexto(valor) {
+  const numero = Number(String(valor || '').trim());
+  if (!Number.isInteger(numero)) return '';
+
+  if (numero === 1) return '1º Eixo - LE';
+  if (numero === 2) return '1º Eixo - LD';
+  if (numero === 35) return 'STEP - 1';
+  if (numero === 36) return 'STEP - 2';
+
+  const grupos = [
+    { inicio: 3, eixo: 2 },
+    { inicio: 7, eixo: 3 },
+    { inicio: 11, eixo: 4 },
+    { inicio: 15, eixo: 5 },
+    { inicio: 19, eixo: 6 },
+    { inicio: 23, eixo: 7 },
+    { inicio: 27, eixo: 8 },
+    { inicio: 31, eixo: 9 }
+  ];
+  const grupo = grupos.find(g => numero >= g.inicio && numero <= g.inicio + 3);
+  if (!grupo) return '';
+
+  const lado = ['LEF', 'LED', 'LDD', 'LDF'][numero - grupo.inicio];
+  return `${grupo.eixo}º Eixo - ${lado}`;
+}
+
+function renderRodaPneu(pos, pneu, linha = 'top') {
   const cpkNovo = pneu ? cpkPneu(pneu) : null;
   const estadoNovo = pneu && cpkNovo === null ? 'sem-km' : pneu && cpkNovo > 0.1 ? 'alto-cpk' : '';
-  const tituloNovo = pneu ? `${pos.codigo} - ${pneu.numPneu}` : `${pos.codigo} - Posicao vazia`;
-  return `<div class="tire ${pneu ? 'ocupado' : 'vazio'} ${estadoNovo}" title="${escapeHtml(tituloNovo)}">
+  const tituloNovo = pneu
+    ? [
+      `Fogo: ${pneu.numPneu}`,
+      `Marca: ${pneu.marca || '-'}`,
+      `Medida: ${pneu.medida || '-'}`,
+      `Posicao: ${pos.nomeLocal || pos.codigo}`,
+      `KM: ${kmFormatado(pneu.kmRodadoTotal)}`,
+      `CPK: ${cpkNovo !== null ? cpkFormatado(cpkNovo) : '-'}`
+    ].join('\n')
+    : `${pos.codigo} - Posicao vazia`;
+  const fogo = `<div class="fogo-box ${pneu ? 'ocupado' : 'vazio'}">${pneu ? escapeHtml(pneu.numPneu) : ''}</div>`;
+  const roda = `<div class="tire ${pneu ? 'ocupado' : 'vazio'} ${estadoNovo}" title="${escapeHtml(tituloNovo)}">
     <span>${escapeHtml(pos.codigo)}</span>
-    ${pneu ? `<strong>${escapeHtml(pneu.numPneu)}</strong>` : ''}
   </div>`;
+  return `<div class="tire-slot ${linha}">${linha === 'top' ? fogo + roda : roda + fogo}</div>`;
   const titulo = pneu ? `${pos.codigo} - Rodando` : `${pos.codigo} - Posição vazia`;
   return `<div class="tire ${pneu ? 'ocupado' : 'vazio'}" title="${titulo}"><span>${pos.codigo}</span></div>`;
 }
@@ -1162,10 +1588,10 @@ function gerarEixosParaVeiculo(tipo) {
   
   const eixoDirecional = { nome: '1º Eixo', tipo: 'simples', top: [{ codigo: 'LD' }], bottom: [{ codigo: 'LE' }] };
   const eixoTracao = (num) => ({ nome: `${num}º Eixo`, tipo: 'duplo', top: [{ codigo: 'LDF' }, { codigo: 'LDD' }], bottom: [{ codigo: 'LEF' }, { codigo: 'LED' }] });
-  const eixoStep = { nome: 'Steps', tipo: 'step', top: [{ codigo: 'STEP', nomeLocal: 'STEP - 1' }], bottom: [{ codigo: 'STEP', nomeLocal: 'STEP - 2' }] };
+  const eixoStep = { nome: 'Steps', tipo: 'step', top: [{ codigo: 'STEP', nomeLocal: 'STEP - 2' }], bottom: [{ codigo: 'STEP', nomeLocal: 'STEP - 1' }] };
 
   if (tipoFormatado === 'cavalo' || tipoFormatado.includes('toco')) {
-    return [eixoDirecional, eixoTracao(2), eixoStep];
+    return [eixoDirecional, eixoTracao(2), eixoTracao(3), eixoStep];
   } else if (tipoFormatado === 'carreta' || tipoFormatado === 'truck') {
     return [eixoDirecional, eixoTracao(2), eixoTracao(3), eixoStep];
   } else if (tipoFormatado === 'reboque' || tipoFormatado === 'vanderléia' || tipoFormatado === 'vanderleia') {
@@ -1396,6 +1822,62 @@ function initCadastroPneu() {
   if ($('codSistema')) setVal('codSistema', 'PNEU-' + Date.now());
 }
 
+function normalizarTextoCatalogo(valor) {
+  return String(valor || '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .toUpperCase();
+}
+
+function valoresUnicosOrdenados(lista) {
+  const mapa = new Map();
+  lista.forEach(valor => {
+    const texto = String(valor || '').trim();
+    if (!texto) return;
+    const chave = normalizarTextoCatalogo(texto);
+    if (!mapa.has(chave)) mapa.set(chave, texto);
+  });
+  return [...mapa.values()].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+
+function resolverValorCatalogo(valor, opcoes, forcarMaiusculo = false) {
+  const texto = String(valor || '').trim();
+  if (!texto) return '';
+  const chave = normalizarTextoCatalogo(texto);
+  const existente = opcoes.find(opcao => normalizarTextoCatalogo(opcao) === chave);
+  return existente || (forcarMaiusculo ? texto.toUpperCase() : texto);
+}
+
+function catalogoPneus() {
+  const pneus = getData(KEYS.PNEUS);
+  const marcas = valoresUnicosOrdenados(pneus.map(p => p.marca));
+  const modelos = valoresUnicosOrdenados(pneus.map(p => p.modelo));
+  return { pneus, marcas, modelos };
+}
+
+function preencherDatalist(id, valores) {
+  const lista = $(id);
+  if (!lista) return;
+  lista.innerHTML = valores.map(valor => `<option value="${escapeHtml(valor)}"></option>`).join('');
+}
+
+function preencherSugestoesCadastroPneu() {
+  const { pneus, marcas, modelos } = catalogoPneus();
+  const marcaAtual = normalizarTextoCatalogo(getVal('marca'));
+  const modelosDaMarca = marcaAtual
+    ? valoresUnicosOrdenados(pneus
+      .filter(p => normalizarTextoCatalogo(p.marca) === marcaAtual)
+      .map(p => p.modelo))
+    : modelos;
+
+  preencherDatalist('listaMarcasPneu', marcas);
+  preencherDatalist('listaFiltroMarcasPneu', marcas);
+  preencherDatalist('listaModelosPneu', modelosDaMarca.length ? modelosDaMarca : modelos);
+  preencherDatalist('listaMedidasPneu', valoresUnicosOrdenados(pneus.map(p => p.medida)));
+}
+
 /* Página unificada pneus.html — abas + cadastro + lista */
 function initPneus() {
   // Ativar sistema de abas
@@ -1411,6 +1893,18 @@ function initPneus() {
   // Cadastro
   if ($('btnSalvarCadastro')) $('btnSalvarCadastro').addEventListener('click', salvarPneu);
   if ($('codSistema')) setVal('codSistema', 'PNEU-' + Date.now());
+  preencherSugestoesCadastroPneu();
+  ['marca', 'modelo', 'medida'].forEach(id => {
+    if ($(id)) {
+      $(id).addEventListener('focus', preencherSugestoesCadastroPneu);
+      $(id).addEventListener('input', preencherSugestoesCadastroPneu);
+      $(id).addEventListener('blur', () => {
+        const { marcas, modelos } = catalogoPneus();
+        if (id === 'marca') setVal(id, resolverValorCatalogo(getVal(id), marcas, true));
+        if (id === 'modelo') setVal(id, resolverValorCatalogo(getVal(id), modelos, true));
+      });
+    }
+  });
   // Lista
   initConsultaPneus();
   if ($('btnBuscarDetalhePneu')) $('btnBuscarDetalhePneu').addEventListener('click', () => renderDetalhePneu(getVal('detalhePneuBusca')));
@@ -1423,9 +1917,12 @@ function initPneus() {
 
 async function salvarPneu(event) {
   const botao = event?.currentTarget || $('btnSalvarCadastro');
+  const { marcas, modelos } = catalogoPneus();
   const p = {
-    id: gerarId(), codSistema: getVal('codSistema'), numPneu: getVal('numPneu'), marca: getVal('marca'),
-    modelo: getVal('modelo'), tipo: getVal('tipo'), medida: getVal('medida'), dataCompra: getVal('dataCompra'),
+    id: gerarId(), codSistema: getVal('codSistema'), numPneu: getVal('numPneu'),
+    marca: resolverValorCatalogo(getVal('marca'), marcas, true),
+    modelo: resolverValorCatalogo(getVal('modelo'), modelos, true),
+    tipo: getVal('tipo'), medida: getVal('medida'), dataCompra: getVal('dataCompra'),
     valorCompra: Number(getVal('valorCompra')) || 0, kmCompra: Number(getVal('kmCompra')) || 0,
     fornecedorCompra: getVal('fornecedorCompra'), notaFiscalCompra: getVal('notaFiscalCompra'), observacaoCompra: getVal('observacaoCompra'),
     dot: getVal('dot'), serie: getVal('serie'),
@@ -1449,6 +1946,7 @@ async function salvarPneu(event) {
     notificar('Pneu cadastrado no banco com sucesso.', 'success');
     setVal('codSistema', 'PNEU-' + Date.now());
     ['numPneu', 'marca', 'modelo', 'dot', 'serie', 'dataCompra', 'valorCompra', 'kmCompra', 'profundidade', 'fornecedorCompra', 'notaFiscalCompra', 'observacaoCompra'].forEach(id => setVal(id));
+    preencherSugestoesCadastroPneu();
     renderPneus();
   } catch (error) {
     notificar(error.message || 'Erro ao salvar pneu.', 'error');
@@ -1464,9 +1962,73 @@ function initConsultaPneus() {
   });
 }
 
+function cpkMedioListaPneus(pneus) {
+  const comCpk = pneus.filter(p => cpkPneu(p) !== null);
+  const km = comCpk.reduce((a, p) => a + asNumber(p.kmRodadoTotal), 0);
+  const custo = comCpk.reduce((a, p) => a + custoTotalPneu(p), 0);
+  return km > 0 ? custo / km : null;
+}
+
+function renderResumoFiltrosPneus(pneusFiltrados) {
+  const painel = $('pneuResumoFiltros');
+  const marcasBox = $('pneuMarcasResumo');
+  if (!painel && !marcasBox) return;
+
+  const cpkMedio = cpkMedioListaPneus(pneusFiltrados);
+  const custo = pneusFiltrados.reduce((a, p) => a + custoTotalPneu(p), 0);
+  const km = pneusFiltrados.reduce((a, p) => a + asNumber(p.kmRodadoTotal), 0);
+  const resumo = [
+    ['Pneus filtrados', pneusFiltrados.length],
+    ['Marcas', new Set(pneusFiltrados.map(p => p.marca || 'Marca nao informada')).size],
+    ['Rodando', pneusFiltrados.filter(p => p.statusAtual === 'Rodando').length],
+    ['Estoque', pneusFiltrados.filter(p => p.statusAtual === 'Estoque').length],
+    ['Custo filtrado', moeda(custo)],
+    ['CPK medio', cpkMedio !== null ? cpkFormatado(cpkMedio) : '-']
+  ];
+
+  if (painel) {
+    painel.innerHTML = resumo.map(([label, valor]) => `
+      <div class="filter-summary-card">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(String(valor))}</strong>
+      </div>
+    `).join('');
+  }
+
+  if (marcasBox) {
+    const marcas = Object.values(pneusFiltrados.reduce((acc, p) => {
+      const nome = p.marca || 'Marca nao informada';
+      if (!acc[nome]) acc[nome] = { marca: nome, qtd: 0, rodando: 0, custo: 0, km: 0 };
+      acc[nome].qtd++;
+      if (p.statusAtual === 'Rodando') acc[nome].rodando++;
+      acc[nome].custo += custoTotalPneu(p);
+      acc[nome].km += asNumber(p.kmRodadoTotal);
+      return acc;
+    }, {})).sort((a, b) => b.qtd - a.qtd || a.marca.localeCompare(b.marca, 'pt-BR'));
+
+    marcasBox.innerHTML = marcas.length
+      ? marcas.map(item => `
+        <button type="button" class="brand-count-chip" data-marca="${escapeHtml(item.marca)}">
+          <strong>${escapeHtml(item.marca)}</strong>
+          <span>${item.qtd} pneu(s)</span>
+          <small>${item.rodando} rodando</small>
+        </button>
+      `).join('')
+      : '<div class="empty-state compact">Nenhuma marca encontrada nos filtros.</div>';
+
+    marcasBox.querySelectorAll('[data-marca]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setVal('filtroMarca', btn.dataset.marca || '');
+        renderPneus();
+      });
+    });
+  }
+}
+
 function renderPneus() {
   const tbody = $('corpoTabelaPneus'); if (!tbody) return;
   const pneus = getData(KEYS.PNEUS);
+  preencherSugestoesCadastroPneu();
   const fN = (getVal('filtroPneu') || '').toLowerCase(), fM = (getVal('filtroMarca') || '').toLowerCase(),
     fS = getVal('filtroStatus'), fV = (getVal('filtroVeiculo') || '').toLowerCase(), fP = getVal('filtroPerformance');
   const kms = pneus.map(p => asNumber(p.kmRodadoTotal)).filter(km => km > 0);
@@ -1487,6 +2049,7 @@ function renderPneus() {
   };
   const f = pneus.filter(p => (!fN || (p.numPneu || '').toLowerCase().includes(fN)) && (!fM || (p.marca || '').toLowerCase().includes(fM))
     && (!fS || p.statusAtual === fS) && (!fV || (p.veiculoAtual || '').toLowerCase().includes(fV)) && atendePerformance(p));
+  renderResumoFiltrosPneus(f);
   const exibidos = f.slice(0, MAX_TABLE_ROWS);
   tbody.innerHTML = '';
   if (!f.length) { tbody.innerHTML = '<tr><td colspan="11" class="text-center">Nenhum pneu encontrado.</td></tr>'; return; }
@@ -1658,6 +2221,7 @@ function initMovimentacao() {
   popularSelectVeiculos();
   renderPneusMov();
   if ($('buscaPneuMov')) $('buscaPneuMov').addEventListener('input', renderPneusMov);
+  definirPeriodoPadraoMovimentacoes();
   [
     'buscaHistoricoMov',
     'filtroMovDataInicial',
@@ -1678,18 +2242,28 @@ function initMovimentacao() {
   renderHistoricoMov();
 }
 
+function definirPeriodoPadraoMovimentacoes() {
+  // A tela de movimentacoes deve abrir mostrando tudo que veio do banco.
+  // O usuario filtra por periodo apenas quando quiser restringir a consulta.
+}
+
 function popularSelectVeiculos(filtroMotorista = '') {
-  document.querySelectorAll('.select-veiculos').forEach(sel => {
-    const veiculosTodos = getData(KEYS.VEICULOS);
-    const motorista = normalizarChave(filtroMotorista);
-    const vinculados = motorista ? veiculosTodos.filter(v => {
-      const nomeVinculado = normalizarChave(v.motorista);
-      return nomeVinculado && (nomeVinculado.includes(motorista) || motorista.includes(nomeVinculado));
-    }) : [];
-    const veiculos = vinculados.length ? vinculados : veiculosTodos;
-    const val = sel.value;
-    sel.innerHTML = '<option value="">Selecione...</option>' + veiculos.map(v => `<option value="${v.placa}">${v.placa} - ${v.modelo}</option>`).join('');
-    if (val) sel.value = val;
+  prepararCamposPesquisaveis();
+  const veiculosTodos = getData(KEYS.VEICULOS);
+  const motorista = normalizarChave(filtroMotorista);
+  const vinculados = motorista ? veiculosTodos.filter(v => {
+    const nomeVinculado = normalizarChave(v.motorista);
+    return nomeVinculado && (nomeVinculado.includes(motorista) || motorista.includes(nomeVinculado));
+  }) : [];
+  const veiculos = vinculados.length ? vinculados : veiculosTodos;
+  const opcoes = veiculos.map(v => ({
+    value: v.placa,
+    label: `${v.placa} ${v.modelo || ''}`,
+    meta: [v.modelo, v.motorista].filter(Boolean).join(' / ')
+  }));
+  document.querySelectorAll('.select-veiculos').forEach(campo => {
+    if (campo.dataset) campo.dataset.smartType = 'placa';
+    atualizarCampoPesquisavel(campo, opcoes, 'Digite ou selecione a placa');
   });
 }
 
@@ -1743,6 +2317,11 @@ async function salvarMovimentacao(event) {
     tipoServicoRecape: getVal('tipoServicoRecape') || 'Recapagem',
     observacao: getVal('observacao')
   };
+  const placaMovimentacao = placaCadastrada(m.veiculoAtual);
+  if (placaMovimentacao) {
+    m.veiculoAtual = placaMovimentacao;
+    m.placa_veiculo = placaMovimentacao;
+  }
 
   const pneus = getData(KEYS.PNEUS), idx = pneus.findIndex(p => normalizarChave(p.numPneu) === normalizarChave(numeroPneu));
   const pneuAtual = idx >= 0 ? pneus[idx] : null;
@@ -1985,12 +2564,46 @@ function classeBadgeTipoMov(tipoMov) {
         tipoMov === 'Recapagem' ? 'badge-purple' : 'badge-info';
 }
 
+function movimentacaoBadgeClass(tipoMov) {
+  return classeBadgeTipoMov(tipoMov);
+}
+
 function limparFiltrosMovimentacoes() {
   ['filtroMovDataInicial', 'filtroMovDataFinal', 'filtroMovPneu', 'filtroMovVeiculo', 'filtroMovLocal', 'filtroMovTipo', 'buscaHistoricoMov']
     .forEach(id => setVal(id));
   const todos = document.querySelector('input[name="filtroMovSituacao"][value=""]');
   if (todos) todos.checked = true;
   renderHistoricoMov();
+}
+
+function atualizarResumoFiltrosMovimentacoes(filtrados) {
+  const resumo = $('resumoFiltrosMovimentacoes');
+  const tiposBox = $('resumoTiposMovimentacoes');
+  const dataInicial = getVal('filtroMovDataInicial');
+  const dataFinal = getVal('filtroMovDataFinal');
+  const partes = [];
+  if (dataInicial || dataFinal) {
+    const ini = dataInicial ? new Date(`${dataInicial}T00:00:00`).toLocaleDateString('pt-BR') : 'inicio';
+    const fim = dataFinal ? new Date(`${dataFinal}T00:00:00`).toLocaleDateString('pt-BR') : 'hoje';
+    partes.push(`${ini} a ${fim}`);
+  }
+  if (getVal('filtroMovPneu')) partes.push(`Pneu ${getVal('filtroMovPneu')}`);
+  if (getVal('filtroMovVeiculo')) partes.push(`Veiculo ${getVal('filtroMovVeiculo')}`);
+  if (getVal('filtroMovLocal')) partes.push(`Local ${getVal('filtroMovLocal')}`);
+  if (getVal('filtroMovTipo')) partes.push(tipoMovimentacaoLabel(getVal('filtroMovTipo')));
+  if (resumo) resumo.textContent = partes.length ? partes.join(' | ') : 'Todos os registros do banco';
+
+  if (!tiposBox) return;
+  const ordem = ['Instalacao', 'Atualizacao', 'Retirada', 'Recapagem', 'Baixa'];
+  const contagem = filtrados.reduce((acc, m) => {
+    const tipo = m.tipo_movimentacao || m.tipoMov || 'Outros';
+    acc[tipo] = (acc[tipo] || 0) + 1;
+    return acc;
+  }, {});
+  tiposBox.innerHTML = ordem
+    .filter(tipo => contagem[tipo])
+    .map(tipo => `<span class="movement-type-pill ${classeBadgeTipoMov(tipo)}">${tipoMovimentacaoLabel(tipo)}: ${contagem[tipo]}</span>`)
+    .join('');
 }
 
 function renderHistoricoMov() {
@@ -2023,6 +2636,7 @@ function renderHistoricoMov() {
       (!dataFinal || data <= dataFinal);
   });
   const exibidos = filtrados.slice(0, MAX_TABLE_ROWS);
+  atualizarResumoFiltrosMovimentacoes(filtrados);
   if ($('totalMovimentacoesConsulta')) {
     $('totalMovimentacoesConsulta').textContent = filtrados.length === 1
       ? '1 movimentação'
@@ -2031,7 +2645,7 @@ function renderHistoricoMov() {
 
   tbody.innerHTML = '';
   if (!filtrados.length) {
-    tbody.innerHTML = '<tr><td colspan="11" class="text-center">Nenhuma movimentação encontrada.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhuma movimentação encontrada.</td></tr>';
     return;
   }
 
@@ -2051,20 +2665,18 @@ function renderHistoricoMov() {
       <td><span class="badge ${badgeType}">${tipoLabel}</span></td>
       <td>${escapeHtml(numPneu)}</td>
       <td>${km > 0 ? km.toLocaleString('pt-BR') : '-'}</td>
-      <td>${escapeHtml(origemMovimentacao(m))}</td>
-      <td>${escapeHtml(localOrigemMovimentacao(m))}</td>
       <td>${escapeHtml(destinoMovimentacaoTabela(m))}</td>
       <td>${escapeHtml(localDestinoMovimentacao(m))}</td>
-      <td style="max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(m.observacao || '')}">${escapeHtml(m.observacao || '-')}</td>
-      <td>
+      <td class="actions-cell" title="${escapeHtml(m.observacao || '')}">
         <button class="btn-icon" onclick="editarMovimentacao('${escapeHtml(m.id)}')" title="Editar">✏️</button>
+        <button class="btn-icon btn-icon-danger" onclick="excluirMovimentacao('${escapeHtml(m.id)}')" title="Apagar">🗑️</button>
       </td>
     `;
     tbody.appendChild(tr);
   });
   if (filtrados.length > exibidos.length) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td colspan="11" class="text-center">Mostrando ${exibidos.length} de ${filtrados.length}. Use os filtros para localizar uma movimentação específica.</td>`;
+    tr.innerHTML = `<td colspan="8" class="text-center">Mostrando ${exibidos.length} de ${filtrados.length}. Use os filtros para localizar uma movimentação específica.</td>`;
     tbody.appendChild(tr);
   }
 }
@@ -2108,10 +2720,17 @@ function editarMovimentacao(id) {
   document.querySelector('.tab-btn[data-target="tab-cadastro"]')?.click();
 }
 
-function excluirMovimentacao(id) {
+async function excluirMovimentacao(id) {
   if (!confirm('Excluir esta movimentação permanentemente? (Isso não reverterá os efeitos no pneu)')) return;
-  saveData(KEYS.MOVS, getData(KEYS.MOVS).filter(m => m.id !== id));
-  renderHistoricoMov();
+  try {
+    await apiExcluirMovimentacao(id);
+    saveData(KEYS.MOVS, getData(KEYS.MOVS).filter(m => m.id !== id));
+    notificar('Movimentação apagada do banco.', 'success');
+    await sincronizarDadosBanco(['movimentacoes', 'pneus']);
+    renderHistoricoMov();
+  } catch (error) {
+    notificar(error.message || 'Erro ao apagar movimentação.', 'error');
+  }
 }
 
 let conferenciaItensMotorista = [];
@@ -2129,6 +2748,8 @@ function initMotoristaApp(usuario) {
   renderPneusEsperadosMotorista();
   renderItensConferenciaMotorista();
   renderHistoricoMotorista();
+  initFormDriverLancamento(usuario);
+  renderDriverLancamentos(usuario);
 }
 
 function pneusEsperadosDoVeiculo(placa) {
@@ -2226,10 +2847,10 @@ function itemConferenciaAtual() {
   if (tipo === 'Troca') {
     if (!item.pneuSaiu || !item.pneuEntrou) throw new Error('Informe o pneu que saiu e o pneu que entrou.');
   } else if (!item.numeroPneu) {
-    throw new Error('Informe o NÂº de fogo do pneu.');
+    throw new Error('Informe o Nº de fogo do pneu.');
   }
 
-  if (!item.localAtual) throw new Error('Informe eixo e lado para gerar a posicao.');
+  if (!item.localAtual) throw new Error('Informe eixo e lado para gerar a posição.');
   return item;
 }
 
@@ -2280,11 +2901,16 @@ async function salvarConferenciaMotorista(event) {
   const botao = event?.currentTarget || $('btnSalvarMov');
   const tipo = getVal('tipoMov');
   const dataConferencia = getVal('dataMov');
-  const veiculo = getVal('veiculoAtual');
+  const veiculo = placaCadastrada(getVal('veiculoAtual')) || getVal('veiculoAtual');
   const kmVeiculo = Number(getVal('kmVeiculo')) || 0;
 
   if (!dataConferencia) return notificar('Informe a data da conferencia.', 'error');
   if (!veiculo) return notificar('Selecione o veiculo.', 'error');
+  if (!placaExisteCadastro(veiculo)) {
+    atualizarEstadoCampoPesquisavel($('veiculoAtual'));
+    return notificar(`A placa ${veiculo} nao existe no cadastro de veiculos.`, 'error');
+  }
+  setVal('veiculoAtual', veiculo);
   if (kmVeiculo <= 0) return notificar('Informe o KM atual do veiculo.', 'error');
 
   if (tipo !== 'SemAlteracao' && !conferenciaItensMotorista.length) {
@@ -3391,6 +4017,936 @@ async function alternarPermissaoUsuarioAcesso(id, podeCadastrar, podeRelatorios)
   }
 }
 
+/* === MODULOS OPERACIONAIS === */
+const MODULOS_OPERACIONAIS = {
+  'acerto-viagem-page': {
+    key: KEYS.ACERTOS,
+    form: 'formAcertoViagem',
+    table: 'tabelaAcertosViagem',
+    total: 'acertoTotal',
+    valor: 'acertoValor',
+    pendentes: 'acertoPendentes',
+    campos: ['numeroViagem', 'dataSaida', 'dataRetorno', 'dataAcerto', 'motorista', 'veiculo', 'origemDestino', 'kmInicial', 'kmFinal', 'receita', 'despesas', 'adiantamento', 'mediaLitrosKm', 'status', 'observacao'],
+    colunas: ['', 'No Viagem', 'Placa', 'Motorista', 'Data Inicio', 'Data Term.', 'Km Perc.', 'Media Km', 'Status', 'Abrir'],
+    montarLinha(item) {
+      const km = Math.max(0, asNumber(item.kmFinal) - asNumber(item.kmInicial));
+      const saldo = asNumber(item.receita) - asNumber(item.despesas) - asNumber(item.adiantamento);
+      return [
+        `${formatarDataDashboard(item.dataSaida)} a ${formatarDataDashboard(item.dataRetorno)}`,
+        item.motorista, item.veiculo, item.origemDestino, kmFormatado(km),
+        moeda(item.receita), moeda(item.despesas), moeda(saldo), item.status
+      ];
+    },
+    valorTotal(item) {
+      return asNumber(item.receita) - asNumber(item.despesas) - asNumber(item.adiantamento);
+    }
+  },
+  'manutencao-page': {
+    key: KEYS.MANUTENCOES,
+    form: 'formManutencao',
+    table: 'tabelaManutencoes',
+    total: 'manutencaoTotal',
+    valor: 'manutencaoValor',
+    pendentes: 'manutencaoPendentes',
+    campos: ['data', 'veiculo', 'tipo', 'km', 'oficina', 'item', 'valor', 'status', 'observacao'],
+    colunas: ['Data', 'Veiculo', 'Tipo', 'Item', 'KM', 'Oficina', 'Valor', 'Status'],
+    montarLinha(item) {
+      return [formatarDataDashboard(item.data), item.veiculo, item.tipo, item.item, kmFormatado(item.km), item.oficina, moeda(item.valor), item.status];
+    },
+    valorTotal(item) {
+      return asNumber(item.valor);
+    }
+  }
+};
+MODULOS_OPERACIONAIS['acerto-viagem-detalhe-page'] = MODULOS_OPERACIONAIS['acerto-viagem-page'];
+
+function normalizarBuscaCampo(valor, tipo = 'texto') {
+  return tipo === 'placa' ? normalizarPlaca(valor) : normalizarChave(valor);
+}
+
+function resolverValorCadastrado(valor, tipo = 'texto') {
+  if (tipo === 'placa') return placaCadastrada(valor);
+  if (tipo === 'motorista') return motoristaCadastrado(valor);
+  return valor;
+}
+
+function atualizarEstadoCampoPesquisavel(input) {
+  if (!input || input.dataset.skipSmartValidation === '1') return true;
+  const tipo = input.dataset.smartType || 'texto';
+  const valor = input.value.trim();
+  const confirmado = resolverValorCadastrado(valor, tipo);
+  if (confirmado) input.value = confirmado;
+  const valido = !valor || !!confirmado;
+  const nome = tipo === 'motorista' ? 'Motorista' : 'Placa';
+  input.classList.toggle('is-invalid', !valido);
+  input.title = valido ? '' : `${nome} nao encontrado no cadastro.`;
+  return valido;
+}
+
+function filtrarOpcoesPesquisaveis(input) {
+  const opcoes = Array.isArray(input.__smartOptions) ? input.__smartOptions : [];
+  const tipo = input.dataset.smartType || 'texto';
+  const busca = normalizarBuscaCampo(input.value, tipo);
+  if (!busca) return opcoes.slice(0, 12);
+  return opcoes
+    .filter(opcao => normalizarBuscaCampo(`${opcao.value} ${opcao.label} ${opcao.meta || ''}`, tipo).includes(busca))
+    .slice(0, 12);
+}
+
+function fecharDropdownPesquisavel(input) {
+  const wrap = input?.closest('.smart-combobox');
+  if (!wrap) return;
+  wrap.classList.remove('is-open');
+}
+
+function selecionarOpcaoPesquisavel(input, opcao) {
+  input.value = opcao.value;
+  input.classList.remove('is-invalid');
+  input.title = '';
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+  fecharDropdownPesquisavel(input);
+}
+
+function renderDropdownPesquisavel(input) {
+  const wrap = input.closest('.smart-combobox');
+  const panel = wrap?.querySelector('.smart-combobox-panel');
+  if (!wrap || !panel) return;
+  const opcoes = filtrarOpcoesPesquisaveis(input);
+  if (!opcoes.length) {
+    panel.innerHTML = '<div class="smart-combobox-empty">Nenhum cadastro encontrado</div>';
+    wrap.classList.add('is-open');
+    return;
+  }
+  panel.innerHTML = opcoes.map((opcao, index) => `
+    <button type="button" class="smart-combobox-option" data-index="${index}">
+      <strong>${escapeHtml(opcao.value)}</strong>
+      ${opcao.meta ? `<span>${escapeHtml(opcao.meta)}</span>` : ''}
+    </button>
+  `).join('');
+  panel.querySelectorAll('.smart-combobox-option').forEach((botao, index) => {
+    botao.addEventListener('mousedown', event => {
+      event.preventDefault();
+      selecionarOpcaoPesquisavel(input, opcoes[index]);
+    });
+  });
+  wrap.classList.add('is-open');
+}
+
+function configurarEventosCampoPesquisavel(input) {
+  if (!input || input.dataset.smartBound === '1') return;
+  input.addEventListener('input', () => {
+    if (input.dataset.smartType === 'placa') input.value = input.value.toUpperCase();
+    const tipo = input.dataset.smartType || 'texto';
+    const digitado = normalizarBuscaCampo(input.value, tipo);
+    const confirmado = resolverValorCadastrado(input.value, tipo);
+    const minimo = tipo === 'placa' ? 7 : 3;
+    const invalido = input.dataset.skipSmartValidation !== '1' && digitado.length >= minimo && !confirmado;
+    input.classList.toggle('is-invalid', invalido);
+    input.title = invalido ? `${tipo === 'motorista' ? 'Motorista' : 'Placa'} nao encontrado no cadastro.` : '';
+    renderDropdownPesquisavel(input);
+  });
+  input.addEventListener('focus', () => renderDropdownPesquisavel(input));
+  input.addEventListener('change', () => atualizarEstadoCampoPesquisavel(input));
+  input.addEventListener('blur', () => {
+    setTimeout(() => fecharDropdownPesquisavel(input), 120);
+    atualizarEstadoCampoPesquisavel(input);
+  });
+  input.addEventListener('keydown', event => {
+    if (event.key !== 'ArrowDown' && event.key !== 'Enter') return;
+    const primeira = input.closest('.smart-combobox')?.querySelector('.smart-combobox-option');
+    if (primeira) {
+      event.preventDefault();
+      primeira.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    }
+  });
+  input.dataset.smartBound = '1';
+}
+
+function transformarCampoPesquisavel(campo, config) {
+  if (!campo) return null;
+  if (campo.tagName !== 'SELECT') {
+    campo.dataset.smartType = config.tipo;
+    campo.dataset.skipSmartValidation = config.validar === false ? '1' : campo.dataset.skipSmartValidation || '';
+    configurarEventosCampoPesquisavel(campo);
+    return campo;
+  }
+
+  const input = document.createElement('input');
+  [...campo.attributes].forEach(attr => {
+    if (['multiple', 'size'].includes(attr.name)) return;
+    input.setAttribute(attr.name, attr.value);
+  });
+  input.type = 'text';
+  input.value = campo.value || '';
+  input.className = campo.className || 'form-control';
+  input.placeholder = config.placeholder || campo.getAttribute('placeholder') || 'Pesquisar';
+  input.autocomplete = 'off';
+  input.dataset.smartType = config.tipo;
+  input.dataset.skipSmartValidation = config.validar === false || (campo.id && campo.id.startsWith('filtro')) ? '1' : '';
+
+  const wrap = document.createElement('div');
+  wrap.className = `smart-combobox smart-combobox-${config.tipo}`;
+  const panel = document.createElement('div');
+  panel.className = 'smart-combobox-panel';
+  wrap.appendChild(input);
+  wrap.appendChild(panel);
+  campo.replaceWith(wrap);
+  configurarEventosCampoPesquisavel(input);
+  return input;
+}
+
+function prepararCamposPesquisaveis() {
+  document.querySelectorAll('select[data-select-veiculos], select.select-veiculos').forEach(select => {
+    transformarCampoPesquisavel(select, { tipo: 'placa', placeholder: 'Digite a placa' });
+  });
+  document.querySelectorAll('select[data-select-motoristas]').forEach(select => {
+    transformarCampoPesquisavel(select, { tipo: 'motorista', placeholder: 'Digite o motorista' });
+  });
+}
+
+function atualizarCampoPesquisavel(campoEl, opcoes, placeholder) {
+  if (!campoEl) return;
+  if (campoEl.tagName === 'SELECT') {
+    const atual = campoEl.value;
+    campoEl.innerHTML = `<option value="">${placeholder}</option>` + opcoes.map(opcao => `<option value="${escapeHtml(opcao.value)}">${escapeHtml(opcao.label || opcao.value)}</option>`).join('');
+    if (opcoes.some(opcao => opcao.value === atual)) campoEl.value = atual;
+    return;
+  }
+  campoEl.__smartOptions = opcoes;
+  campoEl.placeholder = placeholder;
+  const confirmado = resolverValorCadastrado(campoEl.value, campoEl.dataset.smartType);
+  if (confirmado) campoEl.value = confirmado;
+}
+
+function preencherSelectOperacional(id, dados, campo, placeholder, tipo = 'texto') {
+  const campoEl = $(id);
+  if (!campoEl) return;
+  const opcoes = valoresUnicosOrdenados(dados.map(item => item[campo])).map(valor => ({ value: valor, label: valor }));
+  if (campoEl.dataset) campoEl.dataset.smartType = tipo;
+  atualizarCampoPesquisavel(campoEl, opcoes, placeholder);
+}
+
+function preencherCombosOperacionais() {
+  const veiculos = getData(KEYS.VEICULOS);
+  const motoristas = getData(KEYS.MOTORISTAS);
+  prepararCamposPesquisaveis();
+  document.querySelectorAll('[data-select-veiculos]').forEach(campo => preencherSelectOperacional(campo.id, veiculos, 'placa', 'Digite ou selecione a placa', 'placa'));
+  document.querySelectorAll('[data-select-motoristas]').forEach(campo => preencherSelectOperacional(campo.id, motoristas, 'nome', 'Digite ou selecione o motorista', 'motorista'));
+  document.querySelectorAll('[data-select-acertos]').forEach(select => preencherSelectAcertos(select));
+}
+
+function badgeStatusOperacional(status) {
+  const s = String(status || '').toLowerCase();
+  if (['aprovado', 'finalizado', 'pago', 'concluido'].includes(s)) return 'badge-success';
+  if (['pendente', 'aberto', 'em analise', 'em andamento'].includes(s)) return 'badge-warning';
+  if (['recusado', 'cancelado', 'vencido'].includes(s)) return 'badge-danger';
+  if (['devolvido', 'devolvida'].includes(s)) return 'badge-info';
+  return 'badge-info';
+}
+
+function proximoNumeroViagem() {
+  const numeros = getData(KEYS.ACERTOS)
+    .map(item => Number(String(item.numeroViagem || '').replace(/\D/g, '')))
+    .filter(Number.isFinite);
+  const proximo = (numeros.length ? Math.max(...numeros) : 4400) + 1;
+  return String(proximo).padStart(5, '0');
+}
+
+function acertoSelecionadoAtual() {
+  const id = getVal('acertoId');
+  return getData(KEYS.ACERTOS).find(item => item.id === id) || null;
+}
+
+function novoAcertoViagem(scroll = true) {
+  if (!$('formAcertoViagem') && document.body.id === 'acerto-viagem-page') {
+    window.location.href = 'acerto-viagem-detalhe.html';
+    return;
+  }
+  ['acertoId', 'numeroViagem', 'dataSaida', 'dataRetorno', 'dataAcerto', 'motorista', 'veiculo', 'origemDestino',
+    'kmInicial', 'kmFinal', 'receita', 'despesas', 'adiantamento', 'mediaLitrosKm', 'status', 'observacao'].forEach(id => setVal(id));
+  setVal('numeroViagem', proximoNumeroViagem());
+  setVal('dataAcerto', new Date().toISOString().split('T')[0]);
+  if ($('status')) $('status').value = 'Pendente';
+  if ($('lanAcerto')) $('lanAcerto').value = '';
+  if ($('acertoFormTitulo')) $('acertoFormTitulo').textContent = 'Novo acerto';
+  if ($('acertoSelecionadoChip')) $('acertoSelecionadoChip').textContent = 'Nova viagem';
+  renderResumoAcertoSelecionado();
+  if (document.body.id === 'acerto-viagem-detalhe-page') {
+    window.history.replaceState({}, '', 'acerto-viagem-detalhe.html');
+  }
+  if (scroll) $('acertoDetalhePanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function preencherAcertoNoFormulario(item) {
+  if (!item) return novoAcertoViagem(false);
+  setVal('acertoId', item.id);
+  setVal('numeroViagem', item.numeroViagem || '');
+  setVal('dataSaida', item.dataSaida || '');
+  setVal('dataRetorno', item.dataRetorno || '');
+  setVal('dataAcerto', item.dataAcerto || '');
+  setVal('motorista', item.motorista || '');
+  setVal('veiculo', item.veiculo || '');
+  setVal('origemDestino', item.origemDestino || '');
+  setVal('kmInicial', item.kmInicial || '');
+  setVal('kmFinal', item.kmFinal || '');
+  setVal('receita', item.receita || '');
+  setVal('despesas', item.despesas || '');
+  setVal('adiantamento', item.adiantamento || '');
+  setVal('mediaLitrosKm', item.mediaLitrosKm || '');
+  setVal('status', item.status || 'Pendente');
+  setVal('observacao', item.observacao || '');
+  if ($('lanAcerto')) $('lanAcerto').value = item.id;
+  if ($('lanMotorista')) $('lanMotorista').value = item.motorista || '';
+  if ($('lanVeiculo')) $('lanVeiculo').value = item.veiculo || '';
+  if ($('acertoFormTitulo')) $('acertoFormTitulo').textContent = `Acerto da viagem ${item.numeroViagem || '-'}`;
+  if ($('acertoSelecionadoChip')) $('acertoSelecionadoChip').textContent = `${item.veiculo || '-'} / ${item.motorista || '-'}`;
+  renderResumoAcertoSelecionado();
+}
+
+function selecionarAcertoViagem(id, opcoes = {}) {
+  if (!$('formAcertoViagem')) {
+    window.location.href = `acerto-viagem-detalhe.html?id=${encodeURIComponent(id)}`;
+    return;
+  }
+  const item = getData(KEYS.ACERTOS).find(acerto => acerto.id === id);
+  if (!item) return;
+  preencherCombosOperacionais();
+  preencherAcertoNoFormulario(item);
+  const configAtual = MODULOS_OPERACIONAIS[document.body.id] || MODULOS_OPERACIONAIS['acerto-viagem-page'];
+  renderTabelaAcertosViagem(configAtual);
+  renderTabelaLancamentosAcerto();
+  if (document.body.id === 'acerto-viagem-detalhe-page') {
+    window.history.replaceState({}, '', `acerto-viagem-detalhe.html?id=${encodeURIComponent(id)}`);
+  }
+  if (opcoes.scroll !== false) $('acertoDetalhePanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function encerrarAcertoSelecionado() {
+  const id = getVal('acertoId');
+  if (!id) return notificar('Selecione ou salve uma viagem antes de encerrar.', 'error');
+  setVal('status', 'Finalizado');
+  $('formAcertoViagem')?.requestSubmit();
+}
+
+function filtrosAcertosViagem() {
+  return {
+    todas: $('filtroAcertoTodas')?.checked,
+    encerradas: $('filtroAcertoEncerradas')?.checked,
+    pendentes: $('filtroAcertoPendentes')?.checked,
+    statusTodas: $('filtroAcertoStatusTodas')?.checked,
+    conferidas: $('filtroAcertoConferidas')?.checked,
+    naoConferidas: $('filtroAcertoNaoConferidas')?.checked,
+    inicio: getVal('filtroAcertoInicio'),
+    fim: getVal('filtroAcertoFim'),
+    placa: getVal('filtroAcertoPlaca'),
+    numero: getVal('filtroAcertoNumero'),
+    motorista: getVal('filtroAcertoMotorista')
+  };
+}
+
+function passaFiltroAcertoViagem(item, filtros) {
+  const status = item.status || 'Pendente';
+  const encerrada = status === 'Finalizado';
+  if (!filtros.todas) {
+    if (filtros.encerradas && !encerrada) return false;
+    if (filtros.pendentes && encerrada) return false;
+  }
+  if (!filtros.statusTodas) {
+    if (filtros.conferidas && status !== 'Finalizado') return false;
+    if (filtros.naoConferidas && status === 'Finalizado') return false;
+  }
+  const data = String(item.dataSaida || '').slice(0, 10);
+  if (filtros.inicio && (!data || data < filtros.inicio)) return false;
+  if (filtros.fim && (!data || data > filtros.fim)) return false;
+  if (filtros.placa && !normalizarPlaca(item.veiculo).includes(normalizarPlaca(filtros.placa))) return false;
+  if (filtros.motorista && item.motorista !== filtros.motorista) return false;
+  if (filtros.numero && !String(item.numeroViagem || '').includes(filtros.numero)) return false;
+  return true;
+}
+
+function renderTabelaAcertosViagem(config) {
+  const tbody = $(config.table);
+  if (!tbody) return;
+  const filtros = filtrosAcertosViagem();
+  const selecionado = getVal('acertoId');
+  const lista = getData(KEYS.ACERTOS)
+    .filter(item => passaFiltroAcertoViagem(item, filtros))
+    .sort((a, b) => String(b.dataSaida || b.criadoEm || '').localeCompare(String(a.dataSaida || a.criadoEm || '')));
+
+  tbody.innerHTML = '';
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center">Nenhuma viagem encontrada para os filtros.</td></tr>';
+    return;
+  }
+
+  lista.slice(0, MAX_TABLE_ROWS).forEach(item => {
+    const km = Math.max(0, asNumber(item.kmFinal) - asNumber(item.kmInicial));
+    const media = asNumber(item.mediaLitrosKm);
+    const finalizado = item.status === 'Finalizado';
+    const tr = document.createElement('tr');
+    tr.className = item.id === selecionado ? 'is-selected-row' : '';
+    tr.innerHTML = `
+      <td><span class="trip-status-dot ${finalizado ? 'ok' : 'pending'}">${finalizado ? '✓' : '×'}</span></td>
+      <td><strong>${escapeHtml(item.numeroViagem || '-')}</strong></td>
+      <td>${escapeHtml(item.veiculo || '-')}</td>
+      <td>${escapeHtml(item.motorista || '-')}</td>
+      <td>${escapeHtml(formatarDataDashboard(item.dataSaida))}</td>
+      <td>${escapeHtml(formatarDataDashboard(item.dataRetorno))}</td>
+      <td>${km.toLocaleString('pt-BR')}</td>
+      <td>${media ? media.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '0,000'}</td>
+      <td><span class="badge ${badgeStatusOperacional(item.status)}">${escapeHtml(item.status || 'Pendente')}</span></td>
+      <td><button type="button" class="btn-mini success" onclick="selecionarAcertoViagem('${escapeHtml(item.id)}')">Abrir</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function initFiltrosAcertoViagem() {
+  const ids = ['filtroAcertoTodas', 'filtroAcertoEncerradas', 'filtroAcertoPendentes', 'filtroAcertoStatusTodas',
+    'filtroAcertoConferidas', 'filtroAcertoNaoConferidas', 'filtroAcertoInicio', 'filtroAcertoFim',
+    'filtroAcertoPlaca', 'filtroAcertoNumero', 'filtroAcertoMotorista'];
+  ids.forEach(id => {
+    const el = $(id);
+    if (!el || el.dataset.bound) return;
+    const evento = el.type === 'checkbox' ? 'change' : 'input';
+    el.addEventListener(evento, () => renderTabelaAcertosViagem(MODULOS_OPERACIONAIS['acerto-viagem-page']));
+    if (evento !== 'change') el.addEventListener('change', () => renderTabelaAcertosViagem(MODULOS_OPERACIONAIS['acerto-viagem-page']));
+    el.dataset.bound = '1';
+  });
+}
+
+function renderResumoAcertoSelecionado() {
+  const acertoId = getVal('acertoId');
+  const lancamentos = getData(KEYS.LANCAMENTOS_ACERTO)
+    .filter(item => item.status === 'Aprovado' && item.acertoId === acertoId);
+  const despesasAprovadas = lancamentos.reduce((total, item) => total + asNumber(item.valor), 0);
+  if (acertoId && $('despesas')) setVal('despesas', despesasAprovadas ? String(despesasAprovadas) : '0');
+  const receita = asNumber(getVal('receita'));
+  const adiantamento = asNumber(getVal('adiantamento'));
+  const despesas = asNumber(getVal('despesas')) || despesasAprovadas;
+  const lucro = receita - despesas - adiantamento;
+  if ($('resumoFretes')) $('resumoFretes').textContent = moeda(receita);
+  if ($('resumoAdiantamentos')) $('resumoAdiantamentos').textContent = moeda(adiantamento);
+  if ($('resumoReceitas')) $('resumoReceitas').textContent = moeda(receita);
+  if ($('resumoDespesas')) $('resumoDespesas').textContent = moeda(despesas);
+  if ($('resumoLucro')) {
+    $('resumoLucro').textContent = moeda(lucro);
+    $('resumoLucro').classList.toggle('danger', lucro < 0);
+  }
+
+  const categoriasPadrao = ['Combustivel', 'Arla', 'Pecas', 'Oficina', 'Borracharia', 'Lavagem', 'Agenciamento', 'Pedagio', 'Outros'];
+  const porCategoria = lancamentos.reduce((acc, item) => {
+    const categoria = item.categoria || 'Outros';
+    acc[categoria] = (acc[categoria] || 0) + asNumber(item.valor);
+    return acc;
+  }, {});
+  const box = $('resumoCategoriasDespesas');
+  if (box) {
+    const categorias = [...new Set([...categoriasPadrao, ...Object.keys(porCategoria)])];
+    box.innerHTML = categorias.map(categoria => (
+      `<div><span>${escapeHtml(categoria)}</span><strong>${moeda(porCategoria[categoria] || 0)}</strong></div>`
+    )).join('');
+  }
+}
+
+function coletarFormularioOperacional(config) {
+  const item = { id: config.key === KEYS.ACERTOS && getVal('acertoId') ? getVal('acertoId') : gerarId(), criadoEm: new Date().toISOString() };
+  config.campos.forEach(campo => {
+    item[campo] = getVal(campo);
+  });
+  if (config.key === KEYS.ACERTOS) {
+    item.numeroViagem = item.numeroViagem || proximoNumeroViagem();
+    item.dataAcerto = item.dataAcerto || new Date().toISOString().split('T')[0];
+    item.veiculo = placaCadastrada(item.veiculo) || item.veiculo;
+    item.motorista = motoristaCadastrado(item.motorista) || item.motorista;
+  }
+  if (config.key === KEYS.MANUTENCOES) {
+    item.veiculo = placaCadastrada(item.veiculo) || item.veiculo;
+  }
+  return item;
+}
+
+function validarFormularioOperacional(config, item) {
+  if (config.key === KEYS.ACERTOS && (!item.dataSaida || !item.motorista || !item.veiculo)) {
+    return 'Informe data de saida, motorista e veiculo.';
+  }
+  if (config.key === KEYS.ACERTOS && item.veiculo && !placaExisteCadastro(item.veiculo)) {
+    atualizarEstadoCampoPesquisavel($('veiculo'));
+    return `A placa ${item.veiculo} nao existe no cadastro de veiculos.`;
+  }
+  if (config.key === KEYS.ACERTOS && item.motorista && !motoristaExisteCadastro(item.motorista)) {
+    atualizarEstadoCampoPesquisavel($('motorista'));
+    return `O motorista ${item.motorista} nao existe no cadastro de motoristas.`;
+  }
+  if (config.key === KEYS.MANUTENCOES && (!item.data || !item.veiculo || !item.tipo || !item.item)) {
+    return 'Informe data, veiculo, tipo e item da manutencao.';
+  }
+  if (config.key === KEYS.MANUTENCOES && item.veiculo && !placaExisteCadastro(item.veiculo)) {
+    atualizarEstadoCampoPesquisavel($('veiculo'));
+    return `A placa ${item.veiculo} nao existe no cadastro de veiculos.`;
+  }
+  if (config.key === KEYS.DESPESAS && (!item.data || !item.categoria || !item.valor)) {
+    return 'Informe data, categoria e valor da despesa.';
+  }
+  if (config.key === KEYS.SOLICITACOES_OPERACIONAIS && (!item.data || !item.tipo || !item.descricao)) {
+    return 'Informe data, tipo e descricao da solicitacao.';
+  }
+  return '';
+}
+
+function limparFormularioOperacional(config) {
+  if (config.key === KEYS.ACERTOS) {
+    novoAcertoViagem(false);
+    preencherCombosOperacionais();
+    return;
+  }
+  config.campos.forEach(campo => setVal(campo));
+  preencherCombosOperacionais();
+}
+
+function renderModuloOperacional(config) {
+  if (config.key === KEYS.ACERTOS) {
+    const lista = getData(config.key);
+    const totalEl = $(config.total);
+    const valorEl = $(config.valor);
+    const pendentesEl = $(config.pendentes);
+    if (totalEl) totalEl.textContent = lista.length.toLocaleString('pt-BR');
+    const totalValor = lista.reduce((a, item) => a + (config.valorTotal ? config.valorTotal(item) : 0), 0);
+    if (valorEl) valorEl.textContent = moeda(totalValor);
+    if (pendentesEl) pendentesEl.textContent = lista.filter(item => ['Pendente', 'Aberto', 'Em analise', 'Em andamento'].includes(item.status)).length.toLocaleString('pt-BR');
+    renderTabelaAcertosViagem(config);
+    renderResumoAcertoSelecionado();
+    return;
+  }
+
+  const lista = getData(config.key);
+  const tbody = $(config.table);
+  const totalEl = $(config.total);
+  const valorEl = $(config.valor);
+  const pendentesEl = $(config.pendentes);
+
+  if (totalEl) totalEl.textContent = lista.length.toLocaleString('pt-BR');
+  const totalValor = lista.reduce((a, item) => a + (config.valorTotal ? config.valorTotal(item) : 0), 0);
+  if (valorEl) valorEl.textContent = config.valorLabel ? config.valorLabel(totalValor) : moeda(totalValor);
+  if (pendentesEl) pendentesEl.textContent = lista.filter(item => ['Pendente', 'Aberto', 'Em analise', 'Em andamento'].includes(item.status)).length.toLocaleString('pt-BR');
+
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  if (!lista.length) {
+    tbody.innerHTML = `<tr><td colspan="${config.colunas.length}" class="text-center">Nenhum lancamento registrado.</td></tr>`;
+    return;
+  }
+
+  lista.slice().reverse().slice(0, MAX_TABLE_ROWS).forEach(item => {
+    const valores = config.montarLinha(item);
+    const tr = document.createElement('tr');
+    tr.innerHTML = valores.map((valor, index) => {
+      const texto = escapeHtml(String(valor === null || valor === undefined || valor === '' ? '-' : valor));
+      const isStatus = config.colunas[index] === 'Status';
+      return `<td>${isStatus ? `<span class="badge ${badgeStatusOperacional(valor)}">${texto}</span>` : texto}</td>`;
+    }).join('');
+    tbody.appendChild(tr);
+  });
+}
+
+function initModuloOperacional() {
+  const config = MODULOS_OPERACIONAIS[document.body.id];
+  if (!config) return;
+  preencherCombosOperacionais();
+  if (config.key === KEYS.ACERTOS) {
+    initFiltrosAcertoViagem();
+    if ($('formAcertoViagem')) {
+      novoAcertoViagem(false);
+      ['receita', 'despesas', 'adiantamento', 'kmInicial', 'kmFinal'].forEach(id => {
+        const el = $(id);
+        if (el && !el.dataset.summaryBound) {
+          el.addEventListener('input', renderResumoAcertoSelecionado);
+          el.dataset.summaryBound = '1';
+        }
+      });
+    }
+  }
+  renderModuloOperacional(config);
+  if (config.key === KEYS.ACERTOS && $('formAcertoViagem')) {
+    const acertoUrl = new URLSearchParams(window.location.search).get('id');
+    if (acertoUrl) selecionarAcertoViagem(acertoUrl, { scroll: false });
+    else renderTabelaLancamentosAcerto();
+  }
+
+  const form = $(config.form);
+  if (form) {
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const item = coletarFormularioOperacional(config);
+      const erro = validarFormularioOperacional(config, item);
+      if (erro) {
+        notificar(erro, 'error');
+        return;
+      }
+      const lista = getData(config.key);
+      const idx = lista.findIndex(registro => registro.id === item.id);
+      if (idx >= 0) lista[idx] = { ...lista[idx], ...item, atualizadoEm: new Date().toISOString() };
+      else lista.push(item);
+      saveData(config.key, lista);
+      limparFormularioOperacional(config);
+      renderModuloOperacional(config);
+      if (config.key === KEYS.ACERTOS) {
+        if (document.body.id === 'acerto-viagem-detalhe-page') {
+          window.history.replaceState({}, '', `acerto-viagem-detalhe.html?id=${encodeURIComponent(item.id)}`);
+        }
+        renderFluxoLancamentosAcerto();
+        selecionarAcertoViagem(item.id, { scroll: false });
+      }
+      notificar(config.key === KEYS.ACERTOS ? 'Acerto salvo.' : 'Lancamento salvo.', 'success');
+    });
+  }
+
+  document.querySelectorAll('[data-clear-operacional]').forEach(btn => {
+    btn.addEventListener('click', () => limparFormularioOperacional(config));
+  });
+}
+
+/* === FLUXO DE LANCAMENTOS DO ACERTO === */
+function rotuloAcertoViagem(acerto) {
+  if (!acerto) return 'Acerto nao vinculado';
+  const periodo = [formatarDataDashboard(acerto.dataSaida), formatarDataDashboard(acerto.dataRetorno)]
+    .filter(Boolean)
+    .join(' a ');
+  return `${periodo || 'Sem periodo'} - ${acerto.motorista || '-'} - ${acerto.veiculo || '-'}${acerto.origemDestino ? ` - ${acerto.origemDestino}` : ''}`;
+}
+
+function preencherSelectAcertos(select) {
+  if (!select) return;
+  const atual = select.value;
+  const acertos = getData(KEYS.ACERTOS).slice().reverse();
+  select.innerHTML = '<option value="">Selecione o acerto</option>' + acertos.map(acerto => (
+    `<option value="${escapeHtml(acerto.id)}">${escapeHtml(rotuloAcertoViagem(acerto))}</option>`
+  )).join('');
+  if (acertos.some(acerto => acerto.id === atual)) select.value = atual;
+}
+
+function arquivosDoInput(input) {
+  if (!input?.files?.length) return [];
+  return Array.from(input.files).map(file => ({
+    nome: file.name,
+    tipo: file.type || 'arquivo',
+    tamanho: file.size || 0
+  }));
+}
+
+function nomesAnexosLancamento(item) {
+  const anexos = Array.isArray(item.anexos) ? item.anexos : [];
+  if (!anexos.length) return '-';
+  return anexos.map(anexo => escapeHtml(anexo.nome || anexo)).join('<br>');
+}
+
+function statusLancamentoPendente(status) {
+  return ['Pendente', 'Em analise', 'Aberto'].includes(status || '');
+}
+
+function tiposComValorNoAcerto(item) {
+  return ['Despesa', 'Combustivel', 'Solicitacao'].includes(item.tipo);
+}
+
+function recalcularDespesasAprovadasAcertos() {
+  const lancamentos = getData(KEYS.LANCAMENTOS_ACERTO);
+  const acertos = getData(KEYS.ACERTOS);
+  if (!acertos.length) return;
+  const totalPorAcerto = lancamentos.reduce((acc, item) => {
+    if (item.status !== 'Aprovado' || !item.acertoId || !tiposComValorNoAcerto(item)) return acc;
+    acc[item.acertoId] = (acc[item.acertoId] || 0) + asNumber(item.valor);
+    return acc;
+  }, {});
+  const atualizados = acertos.map(acerto => ({
+    ...acerto,
+    despesas: totalPorAcerto[acerto.id] || 0
+  }));
+  saveData(KEYS.ACERTOS, atualizados);
+}
+
+function criarLancamentoAcerto(origem, usuario = null) {
+  const motoristaUsuario = usuario?.nome || usuario?.usuario || '';
+  if (origem === 'motorista') {
+    return {
+      id: gerarId(),
+      origem,
+      acertoId: '',
+      tipo: getVal('driverLanTipo'),
+      data: getVal('driverLanData'),
+      motorista: motoristaCadastrado(motoristaUsuario) || motoristaUsuario,
+      veiculo: placaCadastrada(getVal('driverLanVeiculo')) || getVal('driverLanVeiculo'),
+      categoria: getVal('driverLanCategoria'),
+      valor: asNumber(getVal('driverLanValor')),
+      documento: getVal('driverLanDocumento'),
+      descricao: getVal('driverLanDescricao'),
+      anexos: arquivosDoInput($('driverLanAnexos')),
+      status: 'Pendente',
+      criadoEm: new Date().toISOString()
+    };
+  }
+
+  const acertoId = getVal('lanAcerto');
+  const acerto = getData(KEYS.ACERTOS).find(item => item.id === acertoId);
+  return {
+    id: gerarId(),
+    origem: 'operacional',
+    acertoId,
+    acertoLabel: acerto ? rotuloAcertoViagem(acerto) : '',
+    tipo: getVal('lanTipo'),
+    data: getVal('lanData'),
+    motorista: motoristaCadastrado(getVal('lanMotorista')) || getVal('lanMotorista'),
+    veiculo: placaCadastrada(getVal('lanVeiculo')) || getVal('lanVeiculo'),
+    categoria: getVal('lanCategoria'),
+    valor: asNumber(getVal('lanValor')),
+    documento: getVal('lanDocumento'),
+    descricao: getVal('lanDescricao'),
+    anexos: arquivosDoInput($('lanAnexos')),
+    status: 'Em analise',
+    criadoEm: new Date().toISOString()
+  };
+}
+
+function validarLancamentoAcerto(item) {
+  if (!item.tipo || !item.data || !item.motorista) return 'Informe tipo, data e motorista.';
+  if (item.veiculo && !placaExisteCadastro(item.veiculo)) {
+    atualizarEstadoCampoPesquisavel($('lanVeiculo') || $('driverLanVeiculo'));
+    return `A placa ${item.veiculo} nao existe no cadastro de veiculos.`;
+  }
+  if (item.motorista && !motoristaExisteCadastro(item.motorista) && item.origem !== 'motorista') {
+    atualizarEstadoCampoPesquisavel($('lanMotorista'));
+    return `O motorista ${item.motorista} nao existe no cadastro de motoristas.`;
+  }
+  if (item.tipo !== 'Solicitacao' && asNumber(item.valor) <= 0) return 'Informe o valor do lancamento.';
+  if (item.tipo === 'Solicitacao' && !item.descricao) return 'Descreva a solicitacao.';
+  return '';
+}
+
+function salvarLancamentoAcerto(item) {
+  const lista = getData(KEYS.LANCAMENTOS_ACERTO);
+  lista.push(item);
+  saveData(KEYS.LANCAMENTOS_ACERTO, lista);
+  recalcularDespesasAprovadasAcertos();
+  renderFluxoLancamentosAcerto();
+}
+
+function limparFormularioLancamentoAcerto(form) {
+  if (form) form.reset();
+  if ($('lanData')) $('lanData').value = new Date().toISOString().split('T')[0];
+  if ($('driverLanData')) $('driverLanData').value = new Date().toISOString().split('T')[0];
+  preencherCombosOperacionais();
+}
+
+function acoesLancamentoHtml(item) {
+  const id = escapeHtml(item.id);
+  return `<div class="decision-actions">
+    <button type="button" class="btn-mini success" onclick="alterarStatusLancamentoAcerto('${id}','Aprovado')">Aprovar</button>
+    <button type="button" class="btn-mini warning" onclick="alterarStatusLancamentoAcerto('${id}','Devolvido')">Voltar</button>
+    <button type="button" class="btn-mini danger" onclick="alterarStatusLancamentoAcerto('${id}','Cancelado')">Cancelar</button>
+  </div>`;
+}
+
+function linhaBaseLancamento(item) {
+  return {
+    data: formatarDataDashboard(item.data),
+    motorista: item.motorista || '-',
+    veiculo: item.veiculo || '-',
+    tipo: item.tipo || '-',
+    categoria: item.categoria || '-',
+    documento: item.documento || '-',
+    valor: moeda(item.valor),
+    anexos: nomesAnexosLancamento(item),
+    status: `<span class="badge ${badgeStatusOperacional(item.status)}">${escapeHtml(item.status || '-')}</span>`,
+    acoes: acoesLancamentoHtml(item),
+    descricao: item.descricao || '-'
+  };
+}
+
+function renderTabelaLancamentosAcerto() {
+  const tbody = $('tabelaLancamentosAcerto');
+  if (!tbody) return;
+  const acertoAtual = getVal('acertoId');
+  const lista = getData(KEYS.LANCAMENTOS_ACERTO)
+    .filter(item => !acertoAtual || !item.acertoId || item.acertoId === acertoAtual)
+    .slice()
+    .reverse();
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center">Nenhum lancamento recebido.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.slice(0, MAX_TABLE_ROWS).map(item => {
+    const l = linhaBaseLancamento(item);
+    return `<tr>
+      <td>${escapeHtml(l.data)}</td><td>${escapeHtml(l.motorista)}</td><td>${escapeHtml(l.veiculo)}</td>
+      <td>${escapeHtml(l.tipo)}</td><td>${escapeHtml(l.categoria)}</td><td>${l.valor}</td>
+      <td>${l.anexos}</td><td>${l.status}</td><td>${l.acoes}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTabelaDespesasLancamentos() {
+  const tbody = $('tabelaDespesas');
+  if (!tbody) return;
+  const lista = getData(KEYS.LANCAMENTOS_ACERTO)
+    .filter(item => item.tipo !== 'Solicitacao')
+    .slice()
+    .reverse();
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center">Nenhuma despesa ou combustivel recebido.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.slice(0, MAX_TABLE_ROWS).map(item => {
+    const l = linhaBaseLancamento(item);
+    return `<tr>
+      <td>${escapeHtml(l.data)}</td><td>${escapeHtml(l.motorista)}</td><td>${escapeHtml(l.veiculo)}</td>
+      <td>${escapeHtml(l.tipo)}</td><td>${escapeHtml(l.categoria)}</td><td>${escapeHtml(l.documento)}</td>
+      <td>${l.valor}</td><td>${l.anexos}</td><td>${l.status}</td><td>${l.acoes}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTabelaSolicitacoesLancamentos() {
+  const tbody = $('tabelaSolicitacoes');
+  if (!tbody) return;
+  const lista = getData(KEYS.LANCAMENTOS_ACERTO)
+    .filter(item => item.tipo === 'Solicitacao')
+    .slice()
+    .reverse();
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhuma solicitacao recebida.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.slice(0, MAX_TABLE_ROWS).map(item => {
+    const l = linhaBaseLancamento(item);
+    return `<tr>
+      <td>${escapeHtml(l.data)}</td><td>${escapeHtml(l.motorista)}</td><td>${escapeHtml(l.veiculo)}</td>
+      <td>${escapeHtml(l.tipo)}</td><td>${escapeHtml(l.descricao)}</td><td>${l.anexos}</td>
+      <td>${l.status}</td><td>${l.acoes}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderKpisLancamentosAcerto() {
+  const lista = getData(KEYS.LANCAMENTOS_ACERTO);
+  const despesas = lista.filter(item => item.tipo !== 'Solicitacao');
+  const solicitacoes = lista.filter(item => item.tipo === 'Solicitacao');
+  const pendentes = lista.filter(item => statusLancamentoPendente(item.status)).length;
+  const aprovadosValor = lista
+    .filter(item => item.status === 'Aprovado' && tiposComValorNoAcerto(item))
+    .reduce((total, item) => total + asNumber(item.valor), 0);
+
+  if ($('lancamentoTotal')) $('lancamentoTotal').textContent = lista.length.toLocaleString('pt-BR');
+  if ($('lancamentoPendentes')) $('lancamentoPendentes').textContent = pendentes.toLocaleString('pt-BR');
+  if ($('lancamentoAprovados')) $('lancamentoAprovados').textContent = moeda(aprovadosValor);
+
+  if ($('despesaTotal')) $('despesaTotal').textContent = despesas.length.toLocaleString('pt-BR');
+  if ($('despesaValor')) $('despesaValor').textContent = moeda(despesas.filter(item => item.status === 'Aprovado').reduce((total, item) => total + asNumber(item.valor), 0));
+  if ($('despesaPendentes')) $('despesaPendentes').textContent = despesas.filter(item => statusLancamentoPendente(item.status)).length.toLocaleString('pt-BR');
+
+  if ($('solicitacaoTotal')) $('solicitacaoTotal').textContent = solicitacoes.length.toLocaleString('pt-BR');
+  if ($('solicitacaoPrioridade')) $('solicitacaoPrioridade').textContent = solicitacoes.filter(item => item.status === 'Devolvido').length.toLocaleString('pt-BR');
+  if ($('solicitacaoPendentes')) $('solicitacaoPendentes').textContent = solicitacoes.filter(item => statusLancamentoPendente(item.status)).length.toLocaleString('pt-BR');
+}
+
+function renderDriverLancamentos(usuario) {
+  const listaEl = $('driverLancamentosList');
+  if (!listaEl) return;
+  const motorista = normalizarChave(usuario?.nome || usuario?.usuario || '');
+  const lista = getData(KEYS.LANCAMENTOS_ACERTO)
+    .filter(item => normalizarChave(item.motorista) === motorista)
+    .slice()
+    .reverse();
+  if (!lista.length) {
+    listaEl.innerHTML = '<p class="driver-empty">Nenhum lancamento enviado.</p>';
+    return;
+  }
+  listaEl.innerHTML = lista.slice(0, 12).map(item => `
+    <article class="driver-history-item">
+      <strong>${escapeHtml(item.tipo)} - ${moeda(item.valor)}</strong>
+      <span>${escapeHtml(formatarDataDashboard(item.data))} | ${escapeHtml(item.categoria || '-')} | ${escapeHtml(item.status || '-')}</span>
+      <small>${escapeHtml(item.descricao || item.documento || '')}</small>
+    </article>
+  `).join('');
+}
+
+function renderFluxoLancamentosAcerto(usuario = null) {
+  preencherCombosOperacionais();
+  recalcularDespesasAprovadasAcertos();
+  renderTabelaLancamentosAcerto();
+  renderTabelaDespesasLancamentos();
+  renderTabelaSolicitacoesLancamentos();
+  renderKpisLancamentosAcerto();
+  if (usuario) renderDriverLancamentos(usuario);
+  const config = MODULOS_OPERACIONAIS[document.body.id];
+  if (config?.key === KEYS.ACERTOS) renderModuloOperacional(config);
+}
+
+function alterarStatusLancamentoAcerto(id, status) {
+  const lista = getData(KEYS.LANCAMENTOS_ACERTO);
+  const idx = lista.findIndex(item => item.id === id);
+  if (idx < 0) return;
+  const acertoAtual = getVal('acertoId');
+  const vinculoAcerto = status === 'Aprovado' && acertoAtual && !lista[idx].acertoId
+    ? { acertoId: acertoAtual, acertoLabel: rotuloAcertoViagem(acertoSelecionadoAtual()) }
+    : {};
+  lista[idx] = { ...lista[idx], ...vinculoAcerto, status, atualizadoEm: new Date().toISOString() };
+  saveData(KEYS.LANCAMENTOS_ACERTO, lista);
+  recalcularDespesasAprovadasAcertos();
+  const selecionado = getVal('acertoId');
+  if (selecionado) preencherAcertoNoFormulario(getData(KEYS.ACERTOS).find(item => item.id === selecionado));
+  renderFluxoLancamentosAcerto();
+  notificar(`Lancamento ${status.toLowerCase()}.`, status === 'Aprovado' ? 'success' : 'info');
+}
+
+function initFormLancamentoAcerto() {
+  const form = $('formLancamentoAcerto');
+  if (!form) return;
+  if ($('lanData') && !getVal('lanData')) $('lanData').value = new Date().toISOString().split('T')[0];
+  if ($('lanAcerto') && !$('lanAcerto').dataset.bound) {
+    $('lanAcerto').addEventListener('change', () => {
+      const acerto = getData(KEYS.ACERTOS).find(item => item.id === getVal('lanAcerto'));
+      if (acerto) {
+        setVal('lanMotorista', acerto.motorista);
+        setVal('lanVeiculo', acerto.veiculo);
+      }
+    });
+    $('lanAcerto').dataset.bound = '1';
+  }
+  if (form.dataset.bound) return;
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    const item = criarLancamentoAcerto('operacional');
+    const erro = validarLancamentoAcerto(item);
+    if (erro) return notificar(erro, 'error');
+    salvarLancamentoAcerto(item);
+    limparFormularioLancamentoAcerto(form);
+    notificar('Lancamento enviado para analise.', 'success');
+  });
+  form.dataset.bound = '1';
+}
+
+function initFormDriverLancamento(usuario) {
+  const form = $('formDriverLancamento');
+  if (!form) return;
+  if ($('driverLanData') && !getVal('driverLanData')) $('driverLanData').value = new Date().toISOString().split('T')[0];
+  if (form.dataset.bound) return;
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    const item = criarLancamentoAcerto('motorista', usuario);
+    const erro = validarLancamentoAcerto(item);
+    if (erro) return notificar(erro, 'error');
+    salvarLancamentoAcerto(item);
+    limparFormularioLancamentoAcerto(form);
+    renderDriverLancamentos(usuario);
+    notificar('Lancamento enviado para o escritorio.', 'success');
+  });
+  form.dataset.bound = '1';
+}
+
+function initFluxoLancamentosAcerto(usuario = null) {
+  initFormLancamentoAcerto();
+  renderFluxoLancamentosAcerto(usuario);
+}
+
 /* === LIMPAR DADOS === */
 function limparTodosDados() {
   if (confirm('ATENÇÃO! Isso apagará TODOS os dados. Continuar?')) {
@@ -3405,18 +4961,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!usuarioLogado) return;
   if (!exigirPerfil(usuarioLogado)) return;
   atualizarUsuarioNaInterface(usuarioLogado);
+  prepararCamposPesquisaveis();
 
   const recursosPorPagina = {
-    'dashboard-page': ['pneus', 'movimentacoes', 'veiculos'],
+    'dashboard-page': [],
     'motoristas-page': ['motoristas'],
     'veiculos-page': ['veiculos', 'motoristas', 'pneus'],
-    'pneus-page': ['pneus', 'movimentacoes'],
+    'pneus-page': ['pneus', 'movimentacoes', 'veiculos'],
     'movimentacao-page': ['pneus', 'movimentacoes', 'veiculos'],
+    'acerto-viagem-page': ['veiculos', 'motoristas'],
+    'acerto-viagem-detalhe-page': ['veiculos', 'motoristas'],
+    'manutencao-page': ['veiculos', 'motoristas'],
+    'despesas-page': ['veiculos', 'motoristas'],
+    'solicitacoes-page': ['veiculos', 'motoristas'],
     'relatorios-page': ['pneus', 'movimentacoes', 'veiculos', 'motoristas'],
+    'financeiro-page': ['veiculos', 'motoristas'],
     'motorista-app-page': ['pneus', 'movimentacoes', 'veiculos'],
     'configuracoes-page': []
   };
-  window.dadosBancoProntos = sincronizarDadosBanco(recursosPorPagina[document.body.id]);
+  const paginasSomenteLocal = new Set([
+    'acerto-viagem-page',
+    'acerto-viagem-detalhe-page',
+    'manutencao-page',
+    'despesas-page',
+    'solicitacoes-page',
+    'financeiro-page',
+    'relatorios-page'
+  ]);
+  const modoLocal = paginasSomenteLocal.has(document.body.id);
+  window.modoFinanceiroLocal = modoLocal;
+  window.dadosBancoProntos = modoLocal
+    ? Promise.resolve()
+    : sincronizarDadosBanco(recursosPorPagina[document.body.id]);
   await window.dadosBancoProntos;
   if (document.body.id === 'dashboard-page' && usuarioPodeGerenciarConferencias(usuarioLogado)) {
     await fetchConferencias('pendente').catch(() => []);
@@ -3432,8 +5008,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   if ($('pneus-page')) initPneus();
   // Movimentação
   if ($('movimentacao-page')) initMovimentacao();
-  // Dashboard
-  if ($('dashboard-page')) { atualizarDashboard(); gerarGraficosDashboard(); }
+  // Modulos operacionais
+  initModuloOperacional();
+  // Fluxo de acerto e lancamentos
+  initFluxoLancamentosAcerto(usuarioLogado);
+  // Painel de pneus
+  if ($('totalPneus') || $('graficoStatus')) { atualizarDashboard(); gerarGraficosDashboard(); }
   // Relatórios
   if ($('relatorios-page')) gerarRelatorios();
   // Area do motorista
@@ -3441,3 +5021,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Configuracoes
   if ($('configuracoes-page')) initConfiguracoes(usuarioLogado);
 });
+
+

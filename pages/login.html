@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - Executiva Agronegocios</title>
+  <title>Login - Executiva Agronegócios</title>
   <link rel="stylesheet" href="../assets/css/style.css">
   <style>
     body.login-page {
@@ -12,34 +12,68 @@
       justify-content: center;
       min-height: 100vh;
       padding: 24px;
-      background: linear-gradient(120deg, #123524, #157347 58%, #365a85);
+      background:
+        linear-gradient(120deg, rgba(9, 25, 38, 0.92), rgba(10, 44, 31, 0.88) 54%, rgba(18, 53, 36, 0.96)),
+        url('../assets/img/fleet-hero.jpg') center/cover fixed;
     }
 
     .auth-shell {
-      width: min(920px, 100%);
-      min-height: 560px;
+      width: min(1040px, 100%);
+      min-height: 620px;
       display: grid;
-      grid-template-columns: 0.95fr 1.05fr;
-      background: #fff;
+      grid-template-columns: 1.05fr 0.95fr;
+      background: rgba(255, 255, 255, 0.96);
       border: 1px solid rgba(255, 255, 255, 0.24);
       border-radius: 8px;
-      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+      box-shadow: 0 34px 90px rgba(4, 16, 24, 0.36);
       overflow: hidden;
+      backdrop-filter: blur(18px);
     }
 
     .auth-brand {
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 36px;
-      background: #123524;
+      padding: 42px;
+      background:
+        linear-gradient(160deg, rgba(8, 30, 22, 0.96), rgba(14, 51, 43, 0.82)),
+        url('../assets/img/fleet-hero.jpg') center/cover;
       color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .auth-brand::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(120deg, rgba(0, 0, 0, 0.65), transparent 74%);
+      pointer-events: none;
+    }
+
+    .auth-brand > * {
+      position: relative;
+      z-index: 1;
     }
 
     .auth-brand-mark {
-      font-size: 3rem;
+      width: 62px;
+      height: 62px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.14);
+      color: #f6c85f;
+      font-size: 1.18rem;
+      font-weight: 950;
       line-height: 1;
-      margin-bottom: 14px;
     }
 
     .auth-brand h1 {
@@ -58,7 +92,7 @@
 
     .auth-brand p {
       color: rgba(255, 255, 255, 0.78);
-      max-width: 310px;
+      max-width: 390px;
       margin-top: 26px;
     }
 
@@ -66,8 +100,43 @@
       color: rgba(255, 255, 255, 0.58);
     }
 
+    .auth-brand-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 34px;
+      max-width: 440px;
+    }
+
+    .auth-brand-metrics div {
+      min-height: 84px;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.10);
+    }
+
+    .auth-brand-metrics span,
+    .auth-brand-metrics strong {
+      display: block;
+    }
+
+    .auth-brand-metrics span {
+      color: rgba(255, 255, 255, 0.62);
+      font-size: .72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .auth-brand-metrics strong {
+      margin-top: 8px;
+      color: #fff;
+      font-size: .96rem;
+      line-height: 1.18;
+    }
+
     .auth-panel {
-      padding: 42px;
+      padding: 48px;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -177,12 +246,17 @@
   <section class="auth-shell" aria-label="Acesso ao sistema">
     <div class="auth-brand">
       <div>
-        <div class="auth-brand-mark">EA</div>
+        <img class="auth-brand-logo" src="../assets/img/executiva-logo.svg" alt="Executiva Agronegócios">
         <h1>EXECUTIVA</h1>
-        <strong>Agronegocios</strong>
-        <p>Sistema de gestao de pneus e frota com acesso individual para cada usuario.</p>
+        <strong>Agronegócios</strong>
+        <p>Sistema de gestão de frota, pneus, viagens e financeiro operacional.</p>
+        <div class="auth-brand-metrics" aria-hidden="true">
+          <div><span>Controle</span><strong>Pneu por pneu</strong></div>
+          <div><span>Custo</span><strong>CPK em foco</strong></div>
+          <div><span>Operação</span><strong>Frota ativa</strong></div>
+        </div>
       </div>
-      <small>Versao 3.0</small>
+        <small>Executiva Fleet OS - Versão 3.0</small>
     </div>
 
     <div class="auth-panel">
@@ -192,11 +266,11 @@
       </div>
 
       <h2 class="auth-title" id="authTitle">Acessar conta</h2>
-      <p class="auth-copy" id="authCopy">Entre com seu usuario e senha para continuar.</p>
+      <p class="auth-copy" id="authCopy">Entre com seu usuário e senha para continuar.</p>
 
       <form class="auth-form active" id="formLogin" onsubmit="event.preventDefault(); fazerLogin();">
         <div class="form-group">
-          <label for="loginUsuario">Usuario</label>
+          <label for="loginUsuario">Usuário</label>
           <input type="text" id="loginUsuario" class="form-control" autocomplete="username" required>
         </div>
         <div class="form-group">
@@ -214,7 +288,7 @@
           <input type="text" id="cadastroNome" class="form-control" autocomplete="name" required>
         </div>
         <div class="form-group">
-          <label for="cadastroUsuario">Usuario</label>
+          <label for="cadastroUsuario">Usuário</label>
           <input type="text" id="cadastroUsuario" class="form-control" autocomplete="username" required>
         </div>
         <div class="form-group">
@@ -265,7 +339,7 @@
       document.getElementById('tabCadastrar').classList.toggle('active', !loginAtivo);
       document.getElementById('authTitle').textContent = loginAtivo ? 'Acessar conta' : 'Criar acesso';
       document.getElementById('authCopy').textContent = loginAtivo
-        ? 'Entre com seu usuario e senha para continuar.'
+        ? 'Entre com seu usuário e senha para continuar.'
         : 'Cadastro rapido: o administrador precisa aprovar o acesso.';
       document.getElementById('authMessage').className = 'auth-message';
     }
@@ -317,7 +391,7 @@
       const senha = document.getElementById('cadastroSenha').value;
 
       if (!nome || !usuario || !senha) {
-        mostrarMensagem('Preencha nome, usuario e senha.');
+        mostrarMensagem('Preencha nome, usuário e senha.');
         return;
       }
 
@@ -350,7 +424,7 @@
       const senha = document.getElementById('loginSenha').value;
 
       if (!usuario || !senha) {
-        mostrarMensagem('Informe usuario e senha.');
+        mostrarMensagem('Informe usuário e senha.');
         return;
       }
 

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acerto de Viagem - Executiva Agronegocios</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+
+<body id="acerto-viagem-page">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div style="font-size:2.5rem;margin-bottom:8px;">EX</div>
+      <h2>EXECUTIVA</h2>
+      <small>AGRONEGOCIOS</small>
+    </div>
+    <nav class="sidebar-nav"></nav>
+    <div class="sidebar-footer"><button class="btn-sair" onclick="fazerLogout()">Sair</button></div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Consulta de Viagens - Transportes</h1>
+      <p>Localize uma viagem, abra o acerto e confira receitas, despesas, combustivel, solicitacoes e comprovantes.</p>
+    </div>
+
+    <div class="module-shell settlement-console settlement-consultation">
+      <section class="module-card trip-consult-card trip-consult-only">
+        <div class="legacy-filter-grid">
+          <fieldset>
+            <legend>Viagens</legend>
+            <label><input type="checkbox" id="filtroAcertoTodas" checked> Todas</label>
+            <label><input type="checkbox" id="filtroAcertoEncerradas"> Encerradas</label>
+            <label><input type="checkbox" id="filtroAcertoPendentes"> Pendentes</label>
+          </fieldset>
+          <fieldset>
+            <legend>Status</legend>
+            <label><input type="checkbox" id="filtroAcertoStatusTodas" checked> Todas</label>
+            <label><input type="checkbox" id="filtroAcertoConferidas"> Conferidas</label>
+            <label><input type="checkbox" id="filtroAcertoNaoConferidas"> Nao conferidas</label>
+          </fieldset>
+          <fieldset>
+            <legend>Periodo</legend>
+            <label>Data inicial <input type="date" id="filtroAcertoInicio" class="form-control"></label>
+            <label>Data final <input type="date" id="filtroAcertoFim" class="form-control"></label>
+          </fieldset>
+          <fieldset class="wide">
+            <legend>Outros filtros</legend>
+            <label>Placa <select id="filtroAcertoPlaca" class="form-control" data-select-veiculos></select></label>
+            <label>No viagem <input type="text" id="filtroAcertoNumero" class="form-control"></label>
+            <label>Motorista <select id="filtroAcertoMotorista" class="form-control" data-select-motoristas></select></label>
+          </fieldset>
+        </div>
+
+        <div class="table-container trip-table">
+          <table>
+            <thead><tr><th></th><th>No Viagem</th><th>Placa</th><th>Motorista</th><th>Data Inicio</th><th>Data Term.</th><th>Km Perc.</th><th>Media Km</th><th>Status</th><th>Abrir</th></tr></thead>
+            <tbody id="tabelaAcertosViagem"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="../assets/js/app.js"></script>
+</body>
+
+</html>

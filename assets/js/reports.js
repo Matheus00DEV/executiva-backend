@@ -640,6 +640,330 @@ function renderRelCustos(pneus, movs) {
   grafBar('custos-graficoRecapFornecedores', arrRecapFornecedor.map(([nome]) => nome), arrRecapFornecedor.map(([, valor]) => valor), 'rgba(212,160,23,0.75)', 'Recapagens');
 }
 
+// ---- DRE / FINANCEIRO ----
+function isoDataR(valor) {
+  if (!valor) return '';
+  const texto = String(valor).slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) return texto;
+  const data = new Date(valor);
+  return Number.isNaN(data.getTime()) ? '' : data.toISOString().slice(0, 10);
+}
+
+function percentualR(valor) {
+  const n = Number(valor) || 0;
+  return `${n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+}
+
+function moedaKmR(valor) {
+  const n = Number(valor) || 0;
+  return `${moedaR(n)}/km`;
+}
+
+function statusFinanceiroValidoR(item) {
+  const status = String(item?.status || '').trim().toLowerCase();
+  return !['cancelado', 'recusado', 'bloqueado'].includes(status);
+}
+
+function kmAcertoR(item) {
+  return Math.max(0, numR(item.kmFinal) - numR(item.kmInicial));
+}
+
+function dataFinanceiraR(item, tipo) {
+  if (tipo === 'acerto') return isoDataR(item.dataSaida || item.dataRetorno || item.data || item.criadoEm);
+  return isoDataR(item.data || item.dataSaida || item.dataRetorno || item.criadoEm);
+}
+
+function motoristaPorVeiculoR(veiculo, veiculos) {
+  if (!veiculo) return '';
+  return veiculos.find(v => String(v.placa || '').trim() === String(veiculo).trim())?.motorista || '';
+}
+
+function filtrosDreR() {
+  return {
+    inicio: $r('dre-dataInicio')?.value || '',
+    fim: $r('dre-dataFim')?.value || '',
+    veiculo: $r('dre-veiculo')?.value || '',
+    motorista: $r('dre-motorista')?.value || ''
+  };
+}
+
+function passaPeriodoDreR(item, tipo, filtros) {
+  const data = dataFinanceiraR(item, tipo);
+  if (filtros.inicio && (!data || data < filtros.inicio)) return false;
+  if (filtros.fim && (!data || data > filtros.fim)) return false;
+  return true;
+}
+
+function passaFiltrosDreR(item, tipo, filtros, veiculos) {
+  if (!statusFinanceiroValidoR(item)) return false;
+  if (!passaPeriodoDreR(item, tipo, filtros)) return false;
+  const veiculo = item.veiculo || '';
+  const motorista = item.motorista || motoristaPorVeiculoR(veiculo, veiculos);
+  if (filtros.veiculo && veiculo !== filtros.veiculo) return false;
+  if (filtros.motorista && motorista !== filtros.motorista) return false;
+  return true;
+}
+
+function popularSelectDreR(id, valores, labelPadrao) {
+  const select = $r(id);
+  if (!select) return;
+  const atual = select.value;
+  const unicos = [...new Set(valores.filter(Boolean).map(v => String(v).trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  select.innerHTML = `<option value="">${labelPadrao}</option>` + unicos
+    .map(valor => `<option value="${valor}">${valor}</option>`)
+    .join('');
+  if (unicos.includes(atual)) select.value = atual;
+}
+
+function popularFiltrosDreR(acertos, despesas, manutencoes, veiculos, motoristas) {
+  const veiculosFiltro = [
+    ...veiculos.map(v => v.placa),
+    ...acertos.map(a => a.veiculo),
+    ...despesas.map(d => d.veiculo),
+    ...manutencoes.map(m => m.veiculo)
+  ];
+  const motoristasFiltro = [
+    ...motoristas.map(m => m.nome),
+    ...veiculos.map(v => v.motorista),
+    ...acertos.map(a => a.motorista),
+    ...despesas.map(d => d.motorista)
+  ];
+  popularSelectDreR('dre-veiculo', veiculosFiltro, 'Todos os veiculos');
+  popularSelectDreR('dre-motorista', motoristasFiltro, 'Todos os motoristas');
+}
+
+function criarGrupoDreR(map, veiculo, motorista) {
+  const chave = veiculo || 'Sem veiculo';
+  if (!map[chave]) {
+    map[chave] = {
+      veiculo: chave,
+      motorista: motorista || '-',
+      viagens: 0,
+      km: 0,
+      receita: 0,
+      despesasViagem: 0,
+      despesasLancadas: 0,
+      manutencao: 0,
+      adiantamentos: 0
+    };
+  }
+  if ((!map[chave].motorista || map[chave].motorista === '-') && motorista) map[chave].motorista = motorista;
+  return map[chave];
+}
+
+function montarResumoDreR(acertos, despesas, manutencoes, veiculos) {
+  const grupos = {};
+  const resumo = {
+    receita: 0,
+    despesasViagem: 0,
+    despesasLancadas: 0,
+    manutencao: 0,
+    adiantamentos: 0,
+    km: 0,
+    viagens: acertos.length
+  };
+
+  acertos.forEach(item => {
+    const veiculo = item.veiculo || '';
+    const motorista = item.motorista || motoristaPorVeiculoR(veiculo, veiculos);
+    const grupo = criarGrupoDreR(grupos, veiculo, motorista);
+    const receita = numR(item.receita);
+    const despesa = numR(item.despesas);
+    const adiantamento = numR(item.adiantamento);
+    const km = kmAcertoR(item);
+
+    resumo.receita += receita;
+    resumo.despesasViagem += despesa;
+    resumo.adiantamentos += adiantamento;
+    resumo.km += km;
+
+    grupo.viagens++;
+    grupo.km += km;
+    grupo.receita += receita;
+    grupo.despesasViagem += despesa;
+    grupo.adiantamentos += adiantamento;
+  });
+
+  despesas.forEach(item => {
+    const veiculo = item.veiculo || '';
+    const motorista = item.motorista || motoristaPorVeiculoR(veiculo, veiculos);
+    const grupo = criarGrupoDreR(grupos, veiculo, motorista);
+    const valor = numR(item.valor);
+    resumo.despesasLancadas += valor;
+    grupo.despesasLancadas += valor;
+  });
+
+  manutencoes.forEach(item => {
+    const veiculo = item.veiculo || '';
+    const motorista = motoristaPorVeiculoR(veiculo, veiculos);
+    const grupo = criarGrupoDreR(grupos, veiculo, motorista);
+    const valor = numR(item.valor);
+    resumo.manutencao += valor;
+    grupo.manutencao += valor;
+  });
+
+  resumo.despesas = resumo.despesasViagem + resumo.despesasLancadas + resumo.manutencao;
+  resumo.lucro = resumo.receita - resumo.despesas;
+  resumo.saldoAcerto = resumo.lucro - resumo.adiantamentos;
+  resumo.margem = resumo.receita > 0 ? (resumo.lucro / resumo.receita) * 100 : 0;
+  resumo.receitaKm = resumo.km > 0 ? resumo.receita / resumo.km : 0;
+  resumo.despesaKm = resumo.km > 0 ? resumo.despesas / resumo.km : 0;
+  resumo.lucroKm = resumo.km > 0 ? resumo.lucro / resumo.km : 0;
+  resumo.ticketMedio = resumo.viagens > 0 ? resumo.receita / resumo.viagens : 0;
+  resumo.mediaKmViagem = resumo.viagens > 0 ? resumo.km / resumo.viagens : 0;
+  resumo.grupos = Object.values(grupos).map(grupo => {
+    const despesasGrupo = grupo.despesasViagem + grupo.despesasLancadas + grupo.manutencao;
+    const lucroGrupo = grupo.receita - despesasGrupo;
+    return {
+      ...grupo,
+      despesas: despesasGrupo,
+      lucro: lucroGrupo,
+      margem: grupo.receita > 0 ? (lucroGrupo / grupo.receita) * 100 : 0,
+      receitaKm: grupo.km > 0 ? grupo.receita / grupo.km : 0,
+      lucroKm: grupo.km > 0 ? lucroGrupo / grupo.km : 0
+    };
+  }).sort((a, b) => b.lucro - a.lucro);
+  return resumo;
+}
+
+function setDreTextR(id, valor) {
+  const el = $r(id);
+  if (el) el.textContent = valor;
+}
+
+function linhaDreR(label, valor, classe = '') {
+  return `<div class="dre-line ${classe}"><span>${label}</span><strong>${valor}</strong></div>`;
+}
+
+function renderLinhasDreR(resumo) {
+  const linhas = $r('dre-linhas');
+  if (linhas) {
+    linhas.innerHTML = [
+      linhaDreR('Receita bruta de viagens', moedaR(resumo.receita), 'total'),
+      linhaDreR('(-) Despesas informadas no acerto', moedaR(-resumo.despesasViagem), 'warning'),
+      linhaDreR('(-) Lancamentos de despesas', moedaR(-resumo.despesasLancadas), 'warning'),
+      linhaDreR('(-) Manutencao e revisao', moedaR(-resumo.manutencao), 'warning'),
+      linhaDreR('Lucro operacional', moedaR(resumo.lucro), resumo.lucro >= 0 ? 'total' : 'negative'),
+      linhaDreR('(-) Adiantamentos abatidos', moedaR(-resumo.adiantamentos), 'muted'),
+      linhaDreR('Saldo financeiro do acerto', moedaR(resumo.saldoAcerto), resumo.saldoAcerto >= 0 ? 'total' : 'negative')
+    ].join('');
+  }
+
+  const medias = $r('dre-medias');
+  if (medias) {
+    medias.innerHTML = [
+      linhaDreR('Viagens no periodo', resumo.viagens.toLocaleString('pt-BR'), 'muted'),
+      linhaDreR('KM total', kmFmt(resumo.km), 'muted'),
+      linhaDreR('Media de KM por viagem', kmFmt(resumo.mediaKmViagem), 'muted'),
+      linhaDreR('Receita por KM', moedaKmR(resumo.receitaKm), 'total'),
+      linhaDreR('Despesa por KM', moedaKmR(resumo.despesaKm), 'warning'),
+      linhaDreR('Lucro por KM', moedaKmR(resumo.lucroKm), resumo.lucroKm >= 0 ? 'total' : 'negative'),
+      linhaDreR('Ticket medio por viagem', moedaR(resumo.ticketMedio), 'muted'),
+      linhaDreR('Margem liquida', percentualR(resumo.margem), resumo.margem >= 0 ? 'total' : 'negative')
+    ].join('');
+  }
+}
+
+function grafResultadoDreR(resumo) {
+  const ctx = $r('dre-graficoResultado');
+  if (!ctx || typeof Chart === 'undefined') return;
+  if (ctx._chartInst) ctx._chartInst.destroy();
+  ctx._chartInst = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Faturamento', 'Despesas', 'Lucro'],
+      datasets: [{
+        label: 'Resultado',
+        data: [resumo.receita, resumo.despesas, resumo.lucro],
+        backgroundColor: ['rgba(26,122,58,0.78)', 'rgba(239,68,68,0.72)', resumo.lucro >= 0 ? 'rgba(212,160,23,0.78)' : 'rgba(185,28,28,0.78)'],
+        borderRadius: 6,
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, ticks: { callback: value => moedaR(value) } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+function grafVeiculosDreR(grupos) {
+  const top = grupos.slice(0, 10);
+  const ctx = $r('dre-graficoVeiculos');
+  if (!ctx || typeof Chart === 'undefined') return;
+  if (ctx._chartInst) ctx._chartInst.destroy();
+  ctx._chartInst = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: top.map(item => item.veiculo),
+      datasets: [{
+        label: 'Lucro',
+        data: top.map(item => item.lucro),
+        backgroundColor: top.map(item => item.lucro >= 0 ? 'rgba(26,122,58,0.75)' : 'rgba(239,68,68,0.72)'),
+        borderRadius: 6,
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, ticks: { callback: value => moedaR(value) } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+function renderTabelaDreR(grupos) {
+  const tbody = $r('dre-tabelaVeiculos');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  if (!grupos.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="no-data">Sem dados financeiros para o filtro selecionado.</td></tr>';
+    return;
+  }
+  grupos.slice(0, MAX_REL_ROWS).forEach(item => {
+    const lucroClasse = item.lucro >= 0 ? 'badge-success' : 'badge-danger';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><strong>${item.veiculo}</strong></td>
+      <td>${item.motorista || '-'}</td>
+      <td>${item.viagens.toLocaleString('pt-BR')}</td>
+      <td>${kmFmt(item.km)}</td>
+      <td>${moedaR(item.receita)}</td>
+      <td>${moedaR(item.despesas)}</td>
+      <td><span class="badge ${lucroClasse}">${moedaR(item.lucro)}</span></td>
+      <td>${percentualR(item.margem)}</td>
+      <td>${moedaKmR(item.receitaKm)}</td>
+      <td>${moedaKmR(item.lucroKm)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderRelDre(acertosBase, despesasBase, manutencoesBase, veiculos, motoristas) {
+  popularFiltrosDreR(acertosBase, despesasBase, manutencoesBase, veiculos, motoristas);
+  const filtros = filtrosDreR();
+  const acertos = acertosBase.filter(item => passaFiltrosDreR(item, 'acerto', filtros, veiculos));
+  const despesas = despesasBase.filter(item => passaFiltrosDreR(item, 'despesa', filtros, veiculos));
+  const manutencoes = manutencoesBase.filter(item => passaFiltrosDreR(item, 'manutencao', filtros, veiculos));
+  const resumo = montarResumoDreR(acertos, despesas, manutencoes, veiculos);
+
+  setDreTextR('dre-faturamento', moedaR(resumo.receita));
+  setDreTextR('dre-despesas', moedaR(resumo.despesas));
+  setDreTextR('dre-lucro', moedaR(resumo.lucro));
+  setDreTextR('dre-margem', percentualR(resumo.margem));
+  setDreTextR('dre-km', kmFmt(resumo.km));
+  setDreTextR('dre-receitaKm', moedaKmR(resumo.receitaKm));
+  setDreTextR('dre-lucroKm', moedaKmR(resumo.lucroKm));
+  setDreTextR('dre-ticketMedio', moedaR(resumo.ticketMedio));
+
+  renderLinhasDreR(resumo);
+  renderTabelaDreR(resumo.grupos);
+  grafResultadoDreR(resumo);
+  grafVeiculosDreR(resumo.grupos);
+}
+
 function initRelatorios() {
   // Limpa cache para garantir dados frescos
   clearRecapCache();
@@ -647,6 +971,27 @@ function initRelatorios() {
   const pneus = getDataR('pneus');
   const movs = getDataR('movimentacoes');
   const veiculos = getDataR('veiculos');
+  const acertos = getDataR('acertos_viagem');
+  const lancamentosAcerto = getDataR('lancamentos_acerto_viagem')
+    .filter(item => String(item.status || '').trim() === 'Aprovado' && !item.acertoId && item.tipo !== 'Solicitacao');
+  const despesas = [...getDataR('despesas_operacionais'), ...lancamentosAcerto];
+  const manutencoes = getDataR('manutencoes_revisoes');
+  const motoristas = getDataR('motoristas');
+
+  const labelsRelatorios = {
+    'rel-geral': 'Relatorio de pneus',
+    'rel-caminhao': 'Relatorio de frota',
+    'rel-dre': 'DRE resumida',
+    'rel-motorista': 'Por motorista',
+    'rel-marca': 'Por marca',
+    'rel-pneu': 'Por pneu',
+    'rel-cpk': 'CPK detalhado',
+    'rel-custos': 'Compras e recapagens'
+  };
+  document.querySelectorAll('.rel-tab-btn').forEach(btn => {
+    const rel = btn.getAttribute('data-rel');
+    if (labelsRelatorios[rel]) btn.textContent = labelsRelatorios[rel];
+  });
 
   // Controle das abas de relatório
   document.querySelectorAll('.rel-tab-btn').forEach(btn => {
@@ -664,6 +1009,7 @@ function initRelatorios() {
       if (target === 'rel-cpk') renderRelCpk(pneus);
       if (target === 'rel-motorista') renderRelMotorista(pneus, veiculos);
       if (target === 'rel-custos') renderRelCustos(pneus, movs);
+      if (target === 'rel-dre') renderRelDre(acertos, despesas, manutencoes, veiculos, motoristas);
     });
   });
 
@@ -677,15 +1023,37 @@ function initRelatorios() {
   ['relMovPeriodo', 'relMovAno', 'relMovTipo'].forEach(id => {
     if ($r(id)) $r(id).addEventListener('change', () => renderRelMovimentacoesPeriodo(movs));
   });
+  ['dre-dataInicio', 'dre-dataFim', 'dre-veiculo', 'dre-motorista'].forEach(id => {
+    if ($r(id)) $r(id).addEventListener('change', () => renderRelDre(acertos, despesas, manutencoes, veiculos, motoristas));
+  });
+  if ($r('dre-limparFiltros')) {
+    $r('dre-limparFiltros').addEventListener('click', () => {
+      ['dre-dataInicio', 'dre-dataFim', 'dre-veiculo', 'dre-motorista'].forEach(id => {
+        if ($r(id)) $r(id).value = '';
+      });
+      renderRelDre(acertos, despesas, manutencoes, veiculos, motoristas);
+    });
+  }
 
   // Renderiza geral inicialmente
   renderRelGeral(pneus, movs);
+  renderRelDre(acertos, despesas, manutencoes, veiculos, motoristas);
   renderRelCustos(pneus, movs);
+
+  const ativarAbaPorHash = () => {
+    const abaInicial = String(window.location.hash || '').replace('#', '');
+    if (!abaInicial || !$r(abaInicial)) return;
+    const botaoInicial = [...document.querySelectorAll('.rel-tab-btn')]
+      .find(btn => btn.getAttribute('data-rel') === abaInicial);
+    if (botaoInicial && !botaoInicial.classList.contains('active')) botaoInicial.click();
+  };
+  window.addEventListener('hashchange', ativarAbaPorHash);
+  ativarAbaPorHash();
 }
 
 // Aguarda DOM e Chart.js
 document.addEventListener('DOMContentLoaded', async () => {
-  if (document.getElementById('relatorios-page')) {
+  if (document.getElementById('relatorios-page') || document.getElementById('financeiro-page')) {
     if (window.dadosBancoProntos) await window.dadosBancoProntos;
     if (typeof Chart !== 'undefined') initRelatorios();
     else {

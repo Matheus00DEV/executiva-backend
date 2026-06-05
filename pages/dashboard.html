@@ -4,216 +4,59 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - Executiva Agronegócios</title>
+  <title>Inicio - Executiva Agronegocios</title>
   <link rel="stylesheet" href="../assets/css/style.css">
 </head>
 
 <body id="dashboard-page">
   <aside class="sidebar">
     <div class="sidebar-header">
-      <div class="login-logo" style="font-size:2.5rem;margin-bottom:8px;">🌾</div>
+      <div class="login-logo" style="font-size:2.5rem;margin-bottom:8px;">EX</div>
       <h2>EXECUTIVA</h2>
-      <small>AGRONEGÓCIOS</small>
+      <small>AGRONEGOCIOS</small>
     </div>
-    <nav class="sidebar-nav">
-      <a href="dashboard.html" class="active"><span class="nav-icon">📊</span><span
-          class="nav-text">Dashboard</span></a>
-      <a href="motoristas.html"><span class="nav-icon">🧑‍✈️</span><span class="nav-text">Motoristas</span></a>
-      <a href="veiculos.html"><span class="nav-icon">🚚</span><span class="nav-text">Veículos</span></a>
-      <a href="pneus.html"><span class="nav-icon">🛞</span><span class="nav-text">Pneus</span></a>
-      <a href="movimentacao.html"><span class="nav-icon">🔄</span><span class="nav-text">Movimentação</span></a>
-      <a href="relatorios.html"><span class="nav-icon">📈</span><span class="nav-text">Relatórios</span></a>
-    </nav>
+    <nav class="sidebar-nav"></nav>
     <div class="sidebar-footer">
-      <button class="btn-sair" onclick="fazerLogout()">🚪 Sair do Sistema</button>
+      <button class="btn-sair" onclick="fazerLogout()">Sair do Sistema</button>
     </div>
   </aside>
 
   <main class="main-content">
-    <div class="welcome-banner">
-      <div class="welcome-text">
-        <h2>Bem-vindo ao Sistema Executiva 🌾</h2>
-        <p>Controle completo da sua frota e pneus com análises inteligentes em tempo real.</p>
+    <section class="home-brand-stage" aria-label="Inicio Executiva">
+      <div class="home-logo-display">
+        <img src="../assets/img/executiva-logo.svg" alt="Executiva Agronegocios">
       </div>
-      <div class="welcome-logo"
-        style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-        <div style="font-size: 4.5rem; margin-bottom: 5px; line-height: 1; text-shadow: 0 6px 16px rgba(0,0,0,0.4);">🌾
-        </div>
-        <h2
-          style="font-size: 1.6rem; margin-bottom: 0; font-weight: 900; letter-spacing: 2px; text-shadow: 0 3px 10px rgba(0,0,0,0.3);">
-          EXECUTIVA</h2>
-        <small
-          style="color: var(--dourado); font-size: 0.8rem; letter-spacing: 3px; font-weight: 700; text-shadow: 0 2px 5px rgba(0,0,0,0.4);">AGRONEGÓCIOS</small>
-      </div>
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon green">🛞</div>
-        <div class="stat-info">
-          <div class="stat-label">Total de Pneus</div>
-          <div class="stat-value" id="totalPneus">0</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon green">✅</div>
-        <div class="stat-info">
-          <div class="stat-label">Rodando</div>
-          <div class="stat-value" id="totalRodando">0</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon gold">📦</div>
-        <div class="stat-info">
-          <div class="stat-label">Em Estoque</div>
-          <div class="stat-value" id="totalEstoque">0</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon red">⛔</div>
-        <div class="stat-info">
-          <div class="stat-label">Baixados</div>
-          <div class="stat-value" id="totalBaixados">0</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon blue">🚚</div>
-        <div class="stat-info">
-          <div class="stat-label">Veículos</div>
-          <div class="stat-value" id="totalVeiculos">0</div>
-        </div>
-      </div>
-      <div class="stat-card stat-card-wide">
-        <div class="stat-icon blue">R$</div>
-        <div class="stat-info">
-          <div class="stat-label">CPK Médio</div>
-          <div class="stat-value" id="cpkMedioDashboard">R$ 0,00</div>
-        </div>
-      </div>
-      <div class="stat-card stat-card-wide">
-        <div class="stat-icon gold">KM</div>
-        <div class="stat-info">
-          <div class="stat-label">KM Rodado</div>
-          <div class="stat-value" id="kmRodadoDashboard">0 km</div>
-        </div>
-      </div>
-      <div class="stat-card stat-card-wide">
-        <div class="stat-icon green">R$</div>
-        <div class="stat-info">
-          <div class="stat-label">Investimento</div>
-          <div class="stat-value" id="investimentoDashboard">R$ 0,00</div>
-        </div>
-      </div>
-      <div class="stat-card stat-card-wide">
-        <div class="stat-icon blue">RC</div>
-        <div class="stat-info">
-          <div class="stat-label">Recapagens/Consertos</div>
-          <div class="stat-value" id="recapagensDashboard">0</div>
-        </div>
-      </div>
-    </div>
-
-    <section class="ops-section" aria-labelledby="opsTitle">
-      <div class="ops-head">
-        <div>
-          <span class="section-kicker">Operação</span>
-          <h2 id="opsTitle">Central operacional</h2>
-          <p>Visão rápida dos pontos que pedem atenção hoje.</p>
-        </div>
-        <div class="health-card" id="dashboardHealthCard">
-          <span>Saúde da frota</span>
-          <strong id="dashboardHealthScore">--</strong>
-          <small id="dashboardHealthLabel">Sem dados suficientes</small>
-        </div>
-      </div>
-
-      <div class="ops-grid">
-        <article class="ops-card ops-card-alerts">
-          <div class="ops-card-header">
-            <div>
-              <span class="section-kicker">Prioridade</span>
-              <h3>Alertas</h3>
-            </div>
-            <span class="ops-count" id="dashboardAlertsCount">0</span>
-          </div>
-          <div class="ops-list" id="dashboardAlerts"></div>
-        </article>
-
-        <article class="ops-card">
-          <div class="ops-card-header">
-            <div>
-              <span class="section-kicker">Acompanhar</span>
-              <h3>Pneus em atenção</h3>
-            </div>
-          </div>
-          <div class="ops-list" id="dashboardWatchlist"></div>
-        </article>
-
-        <article class="ops-card">
-          <div class="ops-card-header">
-            <div>
-              <span class="section-kicker">Histórico</span>
-              <h3>Últimas movimentações</h3>
-            </div>
-          </div>
-          <div class="ops-list" id="dashboardRecentMoves"></div>
-        </article>
-
-        <article class="ops-card">
-          <div class="ops-card-header">
-            <div>
-              <span class="section-kicker">Fluxo</span>
-              <h3>Ações rápidas</h3>
-            </div>
-          </div>
-          <div class="quick-actions">
-            <a href="pneus.html"><span>Novo cadastro</span><strong>Pneu</strong></a>
-            <a href="movimentacao.html"><span>Lançamento</span><strong>Movimentação</strong></a>
-            <a href="relatorios.html"><span>Análise</span><strong>Relatórios</strong></a>
-            <a href="veiculos.html"><span>Frota</span><strong>Veículos</strong></a>
-          </div>
-        </article>
+      <div class="home-brand-copy">
+        <span class="section-kicker">Sistema interno</span>
+        <h1>Executiva Agronegocios</h1>
+        <p>Ambiente administrativo da frota. Os indicadores operacionais ficam separados por setor para manter a tela inicial limpa.</p>
       </div>
     </section>
 
-    <div class="charts-grid">
-      <div class="chart-card">
-        <h3>📊 Distribuição por Status</h3>
-        <div class="chart-wrapper"><canvas id="graficoStatus"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>📦 Pneus por Marca</h3>
-        <div class="chart-wrapper"><canvas id="graficoMarcas"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>CPK por Marca</h3>
-        <div class="chart-wrapper"><canvas id="graficoCpkMarca"></canvas></div>
-      </div>
-      <div class="chart-card movement-chart-card">
-        <div class="chart-card-toolbar">
-          <h3>Movimentações</h3>
-          <div class="chart-controls">
-            <select id="dashMovPeriodo" class="form-control">
-              <option value="mensal">Mensal</option>
-              <option value="anual">Anual</option>
-            </select>
-            <select id="dashMovAno" class="form-control"></select>
-          </div>
-        </div>
-        <div class="movement-summary">
-          <div><span>Total</span><strong id="dashMovTotal">0</strong></div>
-          <div><span>Média</span><strong id="dashMovMedia">0</strong></div>
-          <div><span>Pico</span><strong id="dashMovPico">-</strong></div>
-        </div>
-        <div class="chart-wrapper chart-wrapper-tall"><canvas id="graficoMovimentacoes"></canvas></div>
-      </div>
-    </div>
-
-
+    <section class="home-sector-grid" aria-label="Setores do sistema">
+      <a href="pneus.html">
+        <i data-lucide="circle-dot"></i>
+        <span>Pneus</span>
+        <strong>Controle, movimentacoes, CPK e alertas.</strong>
+      </a>
+      <a href="acerto-viagem.html">
+        <i data-lucide="route"></i>
+        <span>Viagens</span>
+        <strong>Acertos por motorista, lancamentos e aprovacao.</strong>
+      </a>
+      <a href="manutencao.html">
+        <i data-lucide="wrench"></i>
+        <span>Manutencao</span>
+        <strong>Ordens, revisoes e demandas da oficina.</strong>
+      </a>
+      <a href="veiculos.html">
+        <i data-lucide="truck"></i>
+        <span>Frota</span>
+        <strong>Veiculos, motoristas e cadastros base.</strong>
+      </a>
+    </section>
   </main>
 
-  <script src="../assets/js/chart.umd.js"></script>
-  <script src="../assets/js/simple-chart-fallback.js"></script>
   <script src="../assets/js/app.js"></script>
 </body>
 

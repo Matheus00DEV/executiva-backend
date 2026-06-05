@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 560" role="img" aria-labelledby="title desc">
+  <title id="title">Executiva Agronegocios</title>
+  <desc id="desc">Marca Executiva em verde e amarelo com chama central e ramos laterais.</desc>
+  <rect width="720" height="560" fill="#ffffff"/>
+  <g transform="translate(0 6)">
+    <path d="M360 30 C314 91 292 155 304 225 C314 284 344 335 361 394 C420 321 450 249 431 174 C421 112 389 63 360 30Z" fill="#f5c400"/>
+    <path d="M354 50 C339 91 337 141 363 191 C382 227 396 264 385 309 C421 256 427 197 400 143 C381 105 372 76 354 50Z" fill="#ffffff" opacity=".86"/>
+    <path d="M423 120 C405 185 355 228 336 289 C322 335 338 377 361 423 C389 352 444 315 463 239 C472 199 459 156 423 120Z" fill="#0eaa58"/>
+    <path d="M434 155 C409 205 363 245 348 300 C338 337 348 370 361 399 C378 342 430 298 447 238 C454 210 449 181 434 155Z" fill="#ffffff" opacity=".88"/>
+    <g fill="#0eaa58">
+      <path d="M206 345 C168 331 135 307 111 273 C150 275 184 294 206 345Z"/>
+      <path d="M225 311 C187 294 158 267 138 229 C178 235 209 258 225 311Z"/>
+      <path d="M238 275 C200 256 173 226 157 187 C198 195 228 221 238 275Z"/>
+      <path d="M246 237 C209 216 183 185 170 146 C210 157 239 186 246 237Z"/>
+      <path d="M250 200 C215 175 193 143 184 104 C224 120 250 153 250 200Z"/>
+      <path d="M514 345 C552 331 585 307 609 273 C570 275 536 294 514 345Z"/>
+      <path d="M495 311 C533 294 562 267 582 229 C542 235 511 258 495 311Z"/>
+      <path d="M482 275 C520 256 547 226 563 187 C522 195 492 221 482 275Z"/>
+      <path d="M474 237 C511 216 537 185 550 146 C510 157 481 186 474 237Z"/>
+      <path d="M470 200 C505 175 527 143 536 104 C496 120 470 153 470 200Z"/>
+    </g>
+    <g stroke="#0eaa58" stroke-width="8" stroke-linecap="round">
+      <path d="M220 352 C190 282 158 214 126 154"/>
+      <path d="M500 352 C530 282 562 214 594 154"/>
+      <path d="M170 145 L138 95"/>
+      <path d="M550 145 L582 95"/>
+    </g>
+  </g>
+  <text x="360" y="486" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="72" font-weight="700" letter-spacing="18" fill="#0eaa58">EXECUTIVA</text>
+  <line x1="94" y1="504" x2="626" y2="504" stroke="#0eaa58" stroke-width="2" opacity=".45"/>
+  <text x="360" y="538" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="25" font-weight="700" letter-spacing="25" fill="#0eaa58">AGRONEGÓCIOS</text>
+</svg>
