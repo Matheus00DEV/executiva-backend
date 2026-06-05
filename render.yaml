@@ -1,0 +1,40 @@
+services:
+  - type: web
+    runtime: node
+    name: executiva-frota-backend
+    rootDir: backend
+    buildCommand: npm ci
+    preDeployCommand: npm run check
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: executiva-frota-db
+          property: connectionString
+      - key: DB_SSL
+        value: "false"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 12h
+      - key: JWT_ISSUER
+        value: executiva-frota
+      - key: MIN_PASSWORD_LENGTH
+        value: "8"
+      - key: JSON_LIMIT
+        value: 1mb
+      - key: RATE_LIMIT_MAX
+        value: "900"
+      - key: AUTH_RATE_LIMIT_MAX
+        value: "30"
+      - key: CORS_ORIGINS
+        sync: false
+
+databases:
+  - name: executiva-frota-db
+    databaseName: executiva_frota
+    user: executiva_frota_user
