@@ -9,6 +9,12 @@ const fs = require('fs');
 
 const db = require('./config/db');
 const { validarConfiguracaoToken } = require('./utils/token');
+const {
+  requestContext,
+  noStoreApi,
+  exigirContentTypeValido,
+  protegerPayload
+} = require('./middleware/securityMiddleware');
 const motoristaRoutes = require('./routes/motoristaRoutes');
 const pneuRoutes = require('./routes/pneuRoutes');
 const movimentacaoRoutes = require('./routes/movimentacaoRoutes');
@@ -30,11 +36,14 @@ const allowedOrigins = [
 validarConfiguracaoToken();
 
 // Middlewares
+app.use(requestContext);
 app.set('trust proxy', isProduction ? 1 : false);
 app.disable('x-powered-by');
 app.use(helmet({
   contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  referrerPolicy: { policy: 'same-origin' },
+  strictTransportSecurity: isProduction ? { maxAge: 15552000, includeSubDomains: true } : false
 }));
 app.use(compression());
 app.use(cors({
@@ -46,10 +55,16 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) return callback(null, true);
     return callback(null, false);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Auth-Token', 'X-Request-Id'],
+  optionsSuccessStatus: 204
 }));
+app.use('/api', noStoreApi);
+app.use(exigirContentTypeValido);
 app.use(express.json({ limit: process.env.JSON_LIMIT || '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: process.env.JSON_LIMIT || '1mb' }));
+app.use(protegerPayload);
 
 const apiLimiter = rateLimit({
   windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000),
@@ -110,14 +125,15 @@ app.use('/api/conferencias', conferenciaRoutes);
 
 // Tratamento de Rota não encontrada (404)
 app.use((req, res) => {
-  res.status(404).json({ error: 'Rota não encontrada' });
+  res.status(404).json({ error: 'Rota nao encontrada', requestId: req.id });
 });
 
 // Tratamento de erros globais (500)
 app.use((err, req, res, next) => {
-  console.error(err.stack || err);
+  console.error(`[${req.id || 'sem-request-id'}]`, err.stack || err);
   res.status(err.status || 500).json({
     error: err.status ? err.message : 'Erro interno no servidor',
+    requestId: req.id,
     ...(isProduction ? {} : { details: err.message })
   });
 });
