@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acerto da Viagem - Executiva Agronegocios</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+
+<body id="acerto-viagem-detalhe-page">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div style="font-size:2.5rem;margin-bottom:8px;">EX</div>
+      <h2>EXECUTIVA</h2>
+      <small>AGRONEGOCIOS</small>
+    </div>
+    <nav class="sidebar-nav"></nav>
+    <div class="sidebar-footer"><button class="btn-sair" onclick="fazerLogout()">Sair</button></div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Acerto da Viagem</h1>
+      <p>Cadastre a viagem, confira despesas aprovadas e trate os lancamentos enviados pelo motorista.</p>
+    </div>
+
+    <div class="module-shell settlement-console settlement-editor">
+      <section class="settlement-detail" id="acertoDetalhePanel">
+        <div class="settlement-layout">
+          <section class="module-card settlement-form-card">
+            <div class="card-header compact-header">
+              <div>
+                <span class="section-kicker">Informacoes da viagem</span>
+                <h2 id="acertoFormTitulo">Novo acerto</h2>
+              </div>
+              <span class="settlement-chip" id="acertoSelecionadoChip">Nova viagem</span>
+            </div>
+            <form id="formAcertoViagem">
+              <input type="hidden" id="acertoId">
+              <div class="form-grid acerto-form-grid">
+                <div class="form-group"><label>No Viagem</label><input type="text" id="numeroViagem" class="form-control" readonly></div>
+                <div class="form-group"><label>Placa *</label><select id="veiculo" class="form-control" data-select-veiculos></select></div>
+                <div class="form-group field-wide"><label>Motorista *</label><select id="motorista" class="form-control" data-select-motoristas></select></div>
+                <div class="form-group"><label>Data inicio *</label><input type="date" id="dataSaida" class="form-control"></div>
+                <div class="form-group"><label>Data termino</label><input type="date" id="dataRetorno" class="form-control"></div>
+                <div class="form-group"><label>Data acerto</label><input type="date" id="dataAcerto" class="form-control"></div>
+                <div class="form-group"><label>Status</label><select id="status" class="form-control"><option>Pendente</option><option>Em analise</option><option>Finalizado</option><option>Cancelado</option></select></div>
+                <div class="form-group field-wide"><label>Origem / destino</label><input type="text" id="origemDestino" class="form-control" placeholder="Ex: Fazenda A / Terminal B"></div>
+                <div class="form-group"><label>KM inicial</label><input type="number" id="kmInicial" class="form-control" min="0"></div>
+                <div class="form-group"><label>KM final</label><input type="number" id="kmFinal" class="form-control" min="0"></div>
+                <div class="form-group"><label>Receita / frete</label><input type="number" id="receita" class="form-control" step="0.01" min="0"></div>
+                <div class="form-group"><label>Despesas aprovadas</label><input type="number" id="despesas" class="form-control" step="0.01" min="0" readonly></div>
+                <div class="form-group"><label>Adiantamento</label><input type="number" id="adiantamento" class="form-control" step="0.01" min="0"></div>
+                <div class="form-group"><label>Media Lts/Km</label><input type="number" id="mediaLitrosKm" class="form-control" step="0.001" min="0"></div>
+                <div class="form-group field-full"><label>Observacao</label><textarea id="observacao" class="form-control" rows="3"></textarea></div>
+              </div>
+              <div class="form-actions split-actions">
+                <a class="btn btn-secondary" href="acerto-viagem.html">Voltar para consulta</a>
+                <div>
+                  <button type="button" class="btn btn-secondary" data-clear-operacional>Novo acerto</button>
+                  <button type="submit" class="btn btn-primary">Salvar acerto</button>
+                  <button type="button" class="btn btn-gold" onclick="encerrarAcertoSelecionado()">Encerrar</button>
+                </div>
+              </div>
+            </form>
+          </section>
+
+          <aside class="module-card settlement-summary-card">
+            <div class="card-header compact-header">
+              <div>
+                <span class="section-kicker">Resumo</span>
+                <h2>Resumo da viagem</h2>
+              </div>
+            </div>
+            <div class="settlement-summary-lines">
+              <div><span>Fretes</span><strong id="resumoFretes">R$ 0,00</strong></div>
+              <div><span>Adiantamentos</span><strong id="resumoAdiantamentos">R$ 0,00</strong></div>
+              <div><span>Total receitas</span><strong id="resumoReceitas">R$ 0,00</strong></div>
+              <div><span>Total despesas</span><strong class="danger" id="resumoDespesas">R$ 0,00</strong></div>
+              <div class="total"><span>Lucro liq.</span><strong id="resumoLucro">R$ 0,00</strong></div>
+            </div>
+            <div class="settlement-expense-breakdown">
+              <h3>Resumo das despesas</h3>
+              <div id="resumoCategoriasDespesas"></div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="module-kpi-grid settlement-kpis">
+          <div class="module-kpi"><span>Lancamentos</span><strong id="lancamentoTotal">0</strong></div>
+          <div class="module-kpi"><span>Pendentes de decisao</span><strong id="lancamentoPendentes">0</strong></div>
+          <div class="module-kpi"><span>Aprovados no acerto</span><strong id="lancamentoAprovados">R$ 0,00</strong></div>
+        </div>
+
+        <section class="module-card settlement-launch-card">
+          <div class="card-header compact-header">
+            <div>
+              <span class="section-kicker">Dentro do acerto</span>
+              <h2>Lancamentos da viagem</h2>
+            </div>
+          </div>
+          <form id="formLancamentoAcerto">
+            <div class="form-grid acerto-form-grid">
+              <div class="form-group field-wide"><label>Acerto / viagem</label><select id="lanAcerto" class="form-control" data-select-acertos><option value="">Selecione o acerto</option></select></div>
+              <div class="form-group"><label>Tipo *</label><select id="lanTipo" class="form-control"><option>Despesa</option><option>Combustivel</option><option>Solicitacao</option></select></div>
+              <div class="form-group"><label>Data *</label><input type="date" id="lanData" class="form-control"></div>
+              <div class="form-group field-wide"><label>Motorista *</label><select id="lanMotorista" class="form-control" data-select-motoristas></select></div>
+              <div class="form-group"><label>Veiculo</label><select id="lanVeiculo" class="form-control" data-select-veiculos></select></div>
+              <div class="form-group"><label>Categoria</label><select id="lanCategoria" class="form-control"><option>Combustivel</option><option>Arla</option><option>Pedagio</option><option>Alimentacao</option><option>Manutencao</option><option>Borracharia</option><option>Lavagem</option><option>Documento</option><option>Outros</option></select></div>
+              <div class="form-group"><label>Valor</label><input type="number" id="lanValor" class="form-control" step="0.01" min="0"></div>
+              <div class="form-group"><label>Documento</label><input type="text" id="lanDocumento" class="form-control" placeholder="NF, recibo ou comprovante"></div>
+              <div class="form-group field-wide"><label>Fotos / documentos</label><input type="file" id="lanAnexos" class="form-control" accept="image/*,.pdf" multiple></div>
+              <div class="form-group field-full"><label>Descricao</label><textarea id="lanDescricao" class="form-control" rows="3" placeholder="Explique o lancamento ou o que precisa ser aprovado"></textarea></div>
+            </div>
+            <div class="form-actions">
+              <button type="reset" class="btn btn-secondary">Limpar lancamento</button>
+              <button type="submit" class="btn btn-primary">Enviar para analise</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="module-card module-table-card">
+          <div class="card-header compact-header">
+            <div>
+              <span class="section-kicker">Fila do escritorio</span>
+              <h2>Lancamentos para conferencia</h2>
+            </div>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead><tr><th>Data</th><th>Motorista</th><th>Veiculo</th><th>Tipo</th><th>Categoria</th><th>Valor</th><th>Anexos</th><th>Status</th><th>Acoes</th></tr></thead>
+              <tbody id="tabelaLancamentosAcerto"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </div>
+  </main>
+
+  <script src="../assets/js/app.js"></script>
+</body>
+
+</html>

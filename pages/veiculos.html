@@ -74,8 +74,43 @@
 
       <!-- ABA LISTA -->
       <div id="tab-lista" class="tab-content">
-        <div class="filtros-row">
-          <input type="text" id="buscaVeiculo" class="form-control" placeholder="🔍 Buscar por placa ou modelo...">
+        <div class="filtros-row vehicle-filter-panel">
+          <div class="form-group">
+            <label>Busca geral</label>
+            <input type="text" id="buscaVeiculo" class="form-control" placeholder="Placa, modelo ou motorista...">
+          </div>
+          <div class="form-group">
+            <label>Placa</label>
+            <input type="text" id="filtroVeiculoPlaca" class="form-control" placeholder="Ex: ABC1D23">
+          </div>
+          <div class="form-group">
+            <label>Marca</label>
+            <input type="text" id="filtroVeiculoMarca" class="form-control" placeholder="Ex: Volvo, Scania">
+          </div>
+          <div class="form-group">
+            <label>Modelo</label>
+            <input type="text" id="filtroVeiculoModelo" class="form-control" placeholder="Ex: FH 540">
+          </div>
+          <div class="form-group">
+            <label>Tipo de veiculo</label>
+            <select id="filtroVeiculoTipo" class="form-control">
+              <option value="">Todos os tipos</option>
+              <option value="Cavalo">Cavalo</option>
+              <option value="Carreta">Carreta</option>
+              <option value="Reboque">Reboque</option>
+              <option value="Truck">Caminhao Truck</option>
+              <option value="Vanderleia">Vanderleia</option>
+              <option value="Bitrem">Bitrem</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Ano</label>
+            <input type="number" id="filtroVeiculoAno" class="form-control" placeholder="Ex: 2024">
+          </div>
+          <div class="form-group">
+            <label>Motorista</label>
+            <input type="text" id="filtroVeiculoMotorista" class="form-control" placeholder="Nome do motorista">
+          </div>
         </div>
         <div class="table-container">
           <table>

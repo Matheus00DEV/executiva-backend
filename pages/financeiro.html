@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Financeiro - Executiva Agronegocios</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+
+<body id="financeiro-page">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div style="font-size:2.5rem;margin-bottom:8px;">EX</div>
+      <h2>EXECUTIVA</h2>
+      <small>AGRONEGOCIOS</small>
+    </div>
+    <nav class="sidebar-nav"></nav>
+    <div class="sidebar-footer"><button class="btn-sair" onclick="fazerLogout()">Sair</button></div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Financeiro da Frota</h1>
+      <p>DRE em dashboard com entradas, saidas, lucro, margem e resultado por veiculo.</p>
+    </div>
+
+    <section class="finance-hero-panel">
+      <div>
+        <span class="section-kicker">DRE financeiro</span>
+        <h2>Demonstrativo do Resultado da Frota</h2>
+        <p>Resumo executivo de receitas e despesas operacionais, baseado nos acertos de viagem, manutencoes e lancamentos aprovados.</p>
+      </div>
+      <div class="chart-controls">
+        <input type="date" id="dre-dataInicio" class="form-control" aria-label="Data inicial">
+        <input type="date" id="dre-dataFim" class="form-control" aria-label="Data final">
+        <select id="dre-veiculo" class="form-control"><option value="">Todos os veiculos</option></select>
+        <select id="dre-motorista" class="form-control"><option value="">Todos os motoristas</option></select>
+        <button type="button" class="btn btn-secondary" id="dre-limparFiltros">Limpar</button>
+      </div>
+    </section>
+
+    <div class="kpi-row dre-kpi-row">
+      <div class="kpi-box verde">
+        <div class="kpi-label">Receita bruta</div>
+        <div class="kpi-value kpi-value-long" id="dre-faturamento">R$ 0</div>
+      </div>
+      <div class="kpi-box danger">
+        <div class="kpi-label">Saidas / despesas</div>
+        <div class="kpi-value kpi-value-long" id="dre-despesas">R$ 0</div>
+      </div>
+      <div class="kpi-box dourado">
+        <div class="kpi-label">Resultado operacional</div>
+        <div class="kpi-value kpi-value-long" id="dre-lucro">R$ 0</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-label">Margem liquida</div>
+        <div class="kpi-value" id="dre-margem">0%</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-label">KM rodado</div>
+        <div class="kpi-value kpi-value-long" id="dre-km">0 km</div>
+      </div>
+      <div class="kpi-box verde">
+        <div class="kpi-label">Receita / km</div>
+        <div class="kpi-value kpi-value-long" id="dre-receitaKm">R$ 0/km</div>
+      </div>
+      <div class="kpi-box dourado">
+        <div class="kpi-label">Resultado / km</div>
+        <div class="kpi-value kpi-value-long" id="dre-lucroKm">R$ 0/km</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-label">Ticket medio</div>
+        <div class="kpi-value kpi-value-long" id="dre-ticketMedio">R$ 0</div>
+      </div>
+    </div>
+
+    <div class="chart-row dre-chart-row">
+      <div class="chart-card">
+        <h3>Entradas x Saidas x Resultado</h3>
+        <div class="chart-wrapper"><canvas id="dre-graficoResultado"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Resultado por veiculo</h3>
+        <div class="chart-wrapper"><canvas id="dre-graficoVeiculos"></canvas></div>
+      </div>
+    </div>
+
+    <div class="finance-dre-grid">
+      <div class="card dre-card">
+        <div class="section-title">DRE resumida</div>
+        <div class="dre-lines" id="dre-linhas"></div>
+      </div>
+      <div class="card dre-card">
+        <div class="section-title">Indicadores de media</div>
+        <div class="dre-lines" id="dre-medias"></div>
+      </div>
+    </div>
+
+    <div class="card finance-table-card">
+      <div class="section-title">Resultado por veiculo e motorista</div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Veiculo</th>
+              <th>Motorista</th>
+              <th>Viagens</th>
+              <th>KM</th>
+              <th>Receita</th>
+              <th>Despesas</th>
+              <th>Resultado</th>
+              <th>Margem</th>
+              <th>Receita/KM</th>
+              <th>Resultado/KM</th>
+            </tr>
+          </thead>
+          <tbody id="dre-tabelaVeiculos"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script src="../assets/js/chart.umd.js"></script>
+  <script src="../assets/js/simple-chart-fallback.js"></script>
+  <script src="../assets/js/app.js"></script>
+  <script src="../assets/js/reports.js"></script>
+</body>
+
+</html>

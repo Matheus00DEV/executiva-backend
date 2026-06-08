@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 
 <head>
@@ -153,93 +153,69 @@
         </script>
       </div>
 
-      <!-- LISTA DE PNEUS -->
-      <div class="card">
+      <!-- MOVIMENTACOES SALVAS -->
+      <div class="card movement-query-card">
         <div class="card-header">
-          <h3>🛞 Selecionar Pneu</h3>
+          <div>
+            <h3>Movimentações salvas</h3>
+            <p class="card-subtitle">Consulte, edite ou apague movimentações já gravadas no banco.</p>
+          </div>
         </div>
-        <div class="filtros-row"><input type="text" id="buscaPneuMov" class="form-control"
-            placeholder="🔍 Buscar pneu..."></div>
-        <div class="table-container">
-          <table>
+
+        <div class="movement-filter-grid">
+          <div class="filter-group">
+            <span>Período</span>
+            <input type="date" id="filtroMovDataInicial" class="form-control" aria-label="Data inicial">
+            <input type="date" id="filtroMovDataFinal" class="form-control" aria-label="Data final">
+          </div>
+          <div class="filter-group filter-group-wide">
+            <span>Filtros</span>
+            <input type="text" id="filtroMovPneu" class="form-control" placeholder="Nº Pneu">
+            <input type="text" id="filtroMovVeiculo" class="form-control" placeholder="Veículo">
+            <input type="text" id="filtroMovLocal" class="form-control" placeholder="Local">
+            <select id="filtroMovTipo" class="form-control">
+              <option value="">Todos os tipos</option>
+              <option value="Instalacao">Instalação</option>
+              <option value="Retirada">Retirada</option>
+              <option value="Recapagem">Recapagem</option>
+              <option value="Atualizacao">Atualização</option>
+              <option value="Baixa">Baixa</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="movement-table-toolbar">
+          <div>
+            <strong id="totalMovimentacoesConsulta">0 movimentações</strong>
+            <div class="movement-filter-summary" id="resumoFiltrosMovimentacoes">Banco de dados</div>
+          </div>
+          <div class="movement-type-summary" id="resumoTiposMovimentacoes"></div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="limparFiltrosMovimentacoes()">Limpar filtros</button>
+        </div>
+
+        <div class="table-container movement-table-container">
+          <table class="movement-table">
             <thead>
               <tr>
+                <th>Nº Mov.</th>
+                <th>Data</th>
+                <th>Tipo</th>
                 <th>Nº Pneu</th>
-                <th>Marca</th>
-                <th>Status</th>
+                <th>KM</th>
                 <th>Veículo</th>
-                <th></th>
+                <th>Local</th>
+                <th>Ações</th>
               </tr>
             </thead>
-            <tbody id="tabelaPneusMov"></tbody>
+            <tbody id="tabelaHistoricoMov"></tbody>
           </table>
         </div>
       </div>
     </div>
-
-    <section class="card movement-query-card">
-      <div class="card-header">
-        <div>
-          <h3>Consulta de Movimentações</h3>
-          <p class="card-subtitle">Filtre por pneu, veículo, local, período ou tipo para conferir e editar lançamentos já feitos.</p>
-        </div>
-      </div>
-
-      <div class="movement-filter-grid">
-        <div class="filter-group">
-          <span>Situação</span>
-          <label><input type="radio" name="filtroMovSituacao" value="" checked> Todos</label>
-          <label><input type="radio" name="filtroMovSituacao" value="Confirmado"> Confirmados</label>
-        </div>
-        <div class="filter-group">
-          <span>Período</span>
-          <input type="date" id="filtroMovDataInicial" class="form-control" aria-label="Data inicial">
-          <input type="date" id="filtroMovDataFinal" class="form-control" aria-label="Data final">
-        </div>
-        <div class="filter-group filter-group-wide">
-          <span>Filtros</span>
-          <input type="text" id="filtroMovPneu" class="form-control" placeholder="Nº Pneu">
-          <input type="text" id="filtroMovVeiculo" class="form-control" placeholder="Veículo">
-          <input type="text" id="filtroMovLocal" class="form-control" placeholder="Local">
-          <select id="filtroMovTipo" class="form-control">
-            <option value="">Todos os tipos</option>
-            <option value="Instalacao">Instalação</option>
-            <option value="Retirada">Retirada</option>
-            <option value="Recapagem">Recapagem</option>
-            <option value="Atualizacao">Atualização</option>
-            <option value="Baixa">Baixa</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="movement-table-toolbar">
-        <strong id="totalMovimentacoesConsulta">0 movimentações</strong>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="limparFiltrosMovimentacoes()">Limpar filtros</button>
-      </div>
-
-      <div class="table-container movement-table-container">
-        <table class="movement-table">
-          <thead>
-            <tr>
-              <th>Nº Mov.</th>
-              <th>Data</th>
-              <th>Tipo Movimentação</th>
-              <th>Nº Pneu</th>
-              <th>KM</th>
-              <th>Veículo Anterior</th>
-              <th>Local Anterior</th>
-              <th>Veículo Destino</th>
-              <th>Local Destino</th>
-              <th>Observação</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody id="tabelaHistoricoMov"></tbody>
-        </table>
-      </div>
-    </section>
   </main>
   <script src="../assets/js/app.js"></script>
 </body>
 
 </html>
+
+

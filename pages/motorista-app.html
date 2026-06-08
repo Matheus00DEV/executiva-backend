@@ -13,7 +13,7 @@
     <header class="driver-header">
       <div>
         <span class="driver-kicker">Executiva</span>
-        <h1>Conferencia de pneus</h1>
+        <h1>Area do motorista</h1>
       </div>
       <button class="driver-logout" type="button" onclick="fazerLogout()">Sair</button>
     </header>
@@ -23,128 +23,255 @@
       <strong id="driverUserName">-</strong>
     </section>
 
-    <section class="driver-card">
-      <div class="driver-card-title">
-        <h2>Enviar conferencia</h2>
-        <p>Informe o KM e marque se houve alteracao nos pneus do veiculo.</p>
-      </div>
+    <nav class="driver-module-tabs" aria-label="Modulos do motorista">
+      <button class="driver-module-tab is-active" type="button" data-driver-panel-target="pneus"><span>PN</span><strong>Pneus</strong></button>
+      <button class="driver-module-tab" type="button" data-driver-panel-target="frota"><span>FR</span><strong>Frota</strong></button>
+      <button class="driver-module-tab" type="button" data-driver-panel-target="adiantamentos"><span>AD</span><strong>Adiantamento</strong></button>
+      <button class="driver-module-tab" type="button" data-driver-panel-target="historico"><span>HT</span><strong>Historico</strong></button>
+    </nav>
 
-      <div class="driver-form">
-        <div class="form-group">
-          <label>Data *</label>
-          <input type="date" id="dataMov" class="form-control">
+    <section class="driver-section is-active" data-driver-panel="pneus">
+      <section class="driver-card">
+        <div class="driver-card-title">
+          <span class="driver-card-kicker">Pneus</span>
+          <h2>Enviar conferencia</h2>
+          <p>Informe o KM e marque somente se houve troca, retirada, instalacao ou atualizacao.</p>
         </div>
 
-        <div class="form-group">
-          <label>Veiculo *</label>
-          <select id="veiculoAtual" class="form-control select-veiculos"></select>
-        </div>
-
-        <div class="driver-expected-card">
-          <div class="driver-card-title compact">
-            <h2>Pneus esperados</h2>
-            <p>Use os botoes para carregar uma alteracao pelo fogo que ja esta no veiculo.</p>
-          </div>
-          <div id="driverExpectedTires" class="driver-expected-list"></div>
-        </div>
-
-        <div class="form-group">
-          <label>KM do veiculo *</label>
-          <input type="number" id="kmVeiculo" class="form-control" inputmode="numeric" placeholder="KM atual">
-        </div>
-
-        <div class="form-group">
-          <label>Situacao *</label>
-          <select id="tipoMov" class="form-control" onchange="toggleDriverMovFields()">
-            <option value="SemAlteracao">Sem alteracao</option>
-            <option value="Troca">Troca de pneu</option>
-            <option value="Instalacao">Instalacao</option>
-            <option value="Retirada">Retirada</option>
-            <option value="Atualizacao">Atualizacao</option>
-            <option value="Baixa">Baixa / Sucata</option>
-          </select>
-        </div>
-
-        <input type="hidden" id="veiculoAnterior" value="Estoque">
-        <input type="hidden" id="localAnterior" value="Estoque">
-
-        <input type="hidden" id="tipoVeiculo" value="Cavalo">
-
-        <div class="form-group driver-item-field driver-single-pneu">
-          <label>Nº Fogo do Pneu *</label>
-          <input type="text" id="numeroPneu" class="form-control" inputmode="numeric" placeholder="Ex: 123456">
-        </div>
-
-        <div class="driver-position-grid driver-item-field driver-troca-field">
+        <div class="driver-form">
           <div class="form-group">
-            <label>Pneu que saiu</label>
-            <input type="text" id="pneuSaiu" class="form-control" inputmode="numeric" placeholder="Fogo retirado">
+            <label>Data *</label>
+            <input type="date" id="dataMov" class="form-control">
           </div>
-          <div class="form-group">
-            <label>Pneu que entrou</label>
-            <input type="text" id="pneuEntrou" class="form-control" inputmode="numeric" placeholder="Fogo colocado">
-          </div>
-        </div>
 
-        <div class="driver-position-grid driver-item-field driver-posicao-field">
           <div class="form-group">
-            <label>Eixo</label>
-            <select id="eixo" class="form-control" onchange="toggleStepField()">
-              <option value="">Selecione</option>
-              <option value="1º EIXO">1º EIXO</option>
-              <option value="2º EIXO">2º EIXO</option>
-              <option value="3º EIXO">3º EIXO</option>
-              <option value="4º EIXO">4º EIXO</option>
-              <option value="5º EIXO">5º EIXO</option>
-              <option value="STEP">STEP</option>
+            <label>Veiculo *</label>
+            <select id="veiculoAtual" class="form-control select-veiculos"></select>
+          </div>
+
+          <div class="driver-expected-card">
+            <div class="driver-card-title compact">
+              <h2>Pneus esperados</h2>
+              <p>Escolha o pneu pelo fogo para carregar a posicao correta automaticamente.</p>
+            </div>
+            <div id="driverExpectedTires" class="driver-expected-list"></div>
+          </div>
+
+          <div class="form-group">
+            <label>KM do veiculo *</label>
+            <input type="number" id="kmVeiculo" class="form-control" inputmode="numeric" placeholder="KM atual">
+          </div>
+
+          <div class="form-group">
+            <label>Situacao *</label>
+            <select id="tipoMov" class="form-control" onchange="toggleDriverMovFields()">
+              <option value="SemAlteracao">Sem alteracao</option>
+              <option value="Troca">Troca de pneu</option>
+              <option value="Instalacao">Instalacao</option>
+              <option value="Retirada">Retirada</option>
+              <option value="Atualizacao">Atualizacao</option>
+              <option value="Baixa">Baixa / Sucata</option>
             </select>
           </div>
 
-          <div class="form-group">
-            <label>Lado</label>
-            <select id="lado" class="form-control" onchange="atualizarLocal()">
+          <input type="hidden" id="veiculoAnterior" value="Estoque">
+          <input type="hidden" id="localAnterior" value="Estoque">
+          <input type="hidden" id="tipoVeiculo" value="Cavalo">
+
+          <div class="form-group driver-item-field driver-single-pneu">
+            <label>No Fogo do pneu *</label>
+            <input type="text" id="numeroPneu" class="form-control" inputmode="numeric" placeholder="Ex: 123456">
+          </div>
+
+          <div class="driver-position-grid driver-item-field driver-troca-field">
+            <div class="form-group">
+              <label>Pneu que saiu</label>
+              <input type="text" id="pneuSaiu" class="form-control" inputmode="numeric" placeholder="Fogo retirado">
+            </div>
+            <div class="form-group">
+              <label>Pneu que entrou</label>
+              <input type="text" id="pneuEntrou" class="form-control" inputmode="numeric" placeholder="Fogo colocado">
+            </div>
+          </div>
+
+          <div class="driver-position-grid driver-item-field driver-posicao-field">
+            <div class="form-group">
+              <label>Eixo</label>
+              <select id="eixo" class="form-control" onchange="toggleStepField()">
+                <option value="">Selecione</option>
+                <option value="1 EIXO">1o EIXO</option>
+                <option value="2 EIXO">2o EIXO</option>
+                <option value="3 EIXO">3o EIXO</option>
+                <option value="4 EIXO">4o EIXO</option>
+                <option value="5 EIXO">5o EIXO</option>
+                <option value="STEP">STEP</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Lado</label>
+              <select id="lado" class="form-control" onchange="atualizarLocal()">
+                <option value="">Selecione</option>
+                <option value="LD">LD - lado direito</option>
+                <option value="LE">LE - lado esquerdo</option>
+                <option value="LDD">LDD - direito interno</option>
+                <option value="LDF">LDF - direito externo</option>
+                <option value="LED">LED - esquerdo interno</option>
+                <option value="LEF">LEF - esquerdo externo</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" id="stepNumeroGroup" style="display:none;">
+            <label>Qual Step</label>
+            <select id="stepNumero" class="form-control" onchange="atualizarLocal()">
               <option value="">Selecione</option>
-              <option value="LD">LD</option>
-              <option value="LE">LE</option>
-              <option value="LDD">LDD</option>
-              <option value="LDF">LDF</option>
-              <option value="LED">LED</option>
-              <option value="LEF">LEF</option>
+              <option value="1 Step">1o Step</option>
+              <option value="2 Step">2o Step</option>
             </select>
           </div>
+
+          <div class="form-group driver-item-field driver-posicao-field">
+            <label>Posicao</label>
+            <input type="text" id="localAtual" class="form-control" readonly>
+          </div>
+
+          <div class="form-group">
+            <label>Observacao</label>
+            <textarea id="observacao" class="form-control" rows="3" placeholder="Ex: troca feita em borracharia"></textarea>
+          </div>
+
+          <button id="btnAdicionarConferenciaItem" class="driver-secondary" type="button">Adicionar alteracao</button>
+          <div id="conferenciaItensList" class="driver-conference-list"></div>
+
+          <button id="btnSalvarMov" class="driver-submit" type="button">Enviar conferencia</button>
         </div>
-
-        <div class="form-group" id="stepNumeroGroup" style="display:none;">
-          <label>Qual Step</label>
-          <select id="stepNumero" class="form-control" onchange="atualizarLocal()">
-            <option value="">Selecione</option>
-            <option value="1º Step">1º Step</option>
-            <option value="2º Step">2º Step</option>
-          </select>
-        </div>
-
-        <div class="form-group driver-item-field driver-posicao-field">
-          <label>Posicao</label>
-          <input type="text" id="localAtual" class="form-control" readonly>
-        </div>
-
-        <div class="form-group">
-          <label>Observacao</label>
-          <textarea id="observacao" class="form-control" rows="3" placeholder="Ex: troca feita em borracharia"></textarea>
-        </div>
-
-        <button id="btnAdicionarConferenciaItem" class="driver-secondary" type="button">Adicionar alteracao</button>
-        <div id="conferenciaItensList" class="driver-conference-list"></div>
-
-        <button id="btnSalvarMov" class="driver-submit" type="button">Enviar conferencia</button>
-      </div>
+      </section>
     </section>
 
-    <section class="driver-card driver-history">
-      <div class="driver-card-title">
-        <h2>Ultimas conferencias</h2>
-      </div>
-      <div id="driverHistoryList" class="driver-history-list"></div>
+    <section class="driver-section" data-driver-panel="frota" id="driverLancamentosCard">
+      <section class="driver-card">
+        <div class="driver-card-title">
+          <span class="driver-card-kicker">Frota</span>
+          <h2>Lancar despesa do acerto</h2>
+          <p>Use para combustivel, pedagio, manutencao e outros gastos feitos durante a viagem.</p>
+        </div>
+
+        <form id="formDriverLancamento" class="driver-form">
+          <input type="hidden" id="driverLanTipo" value="Despesa">
+
+          <div class="form-group">
+            <label>Data *</label>
+            <input type="date" id="driverLanData" class="form-control">
+          </div>
+
+          <div class="form-group">
+            <label>Veiculo *</label>
+            <select id="driverLanVeiculo" class="form-control select-veiculos"></select>
+          </div>
+
+          <div class="form-group">
+            <label>Categoria *</label>
+            <select id="driverLanCategoria" class="form-control" onchange="sincronizarTipoLancamentoMotorista()">
+              <option>Combustivel</option>
+              <option>Pedagio</option>
+              <option>Alimentacao</option>
+              <option>Manutencao</option>
+              <option>Borracharia</option>
+              <option>Documento</option>
+              <option>Outros</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Valor *</label>
+            <input type="number" id="driverLanValor" class="form-control" step="0.01" min="0" placeholder="0.00">
+          </div>
+
+          <div class="form-group">
+            <label>Documento</label>
+            <input type="text" id="driverLanDocumento" class="form-control" placeholder="NF, recibo ou comprovante">
+          </div>
+
+          <div class="form-group">
+            <label>Fotos / documentos</label>
+            <input type="file" id="driverLanAnexos" class="form-control" accept="image/*,.pdf" multiple>
+          </div>
+
+          <div class="form-group">
+            <label>Descricao</label>
+            <textarea id="driverLanDescricao" class="form-control" rows="3" placeholder="Ex: abastecimento no posto X"></textarea>
+          </div>
+
+          <button class="driver-submit" type="submit">Enviar despesa</button>
+        </form>
+      </section>
+    </section>
+
+    <section class="driver-section" data-driver-panel="adiantamentos">
+      <section class="driver-card">
+        <div class="driver-card-title">
+          <span class="driver-card-kicker">Adiantamento</span>
+          <h2>Solicitar valor</h2>
+          <p>Use apenas para pedir valor antes do gasto. Depois de aprovado, ele entra no acerto da viagem.</p>
+        </div>
+
+        <form id="formDriverAdiantamento" class="driver-form">
+          <div class="form-group">
+            <label>Tipo de adiantamento *</label>
+            <select id="driverAdCategoria" class="form-control">
+              <option>ADIANTAMENTO PARA ABASTECIMENTO</option>
+              <option>ADIANTAMENTO PARA USO PROPRIO</option>
+              <option>ADIANTAMENTO PARA MANUTENCAO EMERGENCIAL</option>
+              <option>OUTRO ADIANTAMENTO</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Data *</label>
+            <input type="date" id="driverAdData" class="form-control">
+          </div>
+
+          <div class="form-group">
+            <label>Veiculo *</label>
+            <select id="driverAdVeiculo" class="form-control select-veiculos"></select>
+          </div>
+
+          <div class="form-group">
+            <label>Valor solicitado *</label>
+            <input type="number" id="driverAdValor" class="form-control" step="0.01" min="0" placeholder="0.00">
+          </div>
+
+          <div class="form-group">
+            <label>Fotos / documentos</label>
+            <input type="file" id="driverAdAnexos" class="form-control" accept="image/*,.pdf" multiple>
+          </div>
+
+          <div class="form-group">
+            <label>Observacao</label>
+            <textarea id="driverAdDescricao" class="form-control" rows="3" placeholder="Ex: preciso abastecer antes de seguir viagem"></textarea>
+          </div>
+
+          <button class="driver-submit" type="submit">Enviar solicitacao</button>
+        </form>
+      </section>
+    </section>
+
+    <section class="driver-section" data-driver-panel="historico">
+      <section class="driver-card driver-history">
+        <div class="driver-card-title">
+          <span class="driver-card-kicker">Historico</span>
+          <h2>Meus lancamentos</h2>
+        </div>
+        <div id="driverLancamentosList" class="driver-history-list"></div>
+      </section>
+
+      <section class="driver-card driver-history">
+        <div class="driver-card-title">
+          <h2>Ultimas conferencias</h2>
+        </div>
+        <div id="driverHistoryList" class="driver-history-list"></div>
+      </section>
     </section>
   </main>
 

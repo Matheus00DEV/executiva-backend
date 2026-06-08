@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manutencao e Revisao - Executiva Agronegocios</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body id="manutencao-page">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div style="font-size:2.5rem;margin-bottom:8px;">EX</div><h2>EXECUTIVA</h2><small>AGRONEGOCIOS</small></div>
+    <nav class="sidebar-nav"></nav>
+    <div class="sidebar-footer"><button class="btn-sair" onclick="fazerLogout()">Sair</button></div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Manutencao e Revisao</h1>
+      <p>Registre revisoes, manutencoes preventivas, corretivas e custos por veiculo.</p>
+    </div>
+
+    <div class="module-shell">
+      <div class="module-kpi-grid">
+        <div class="module-kpi"><span>Ordens lancadas</span><strong id="manutencaoTotal">0</strong></div>
+        <div class="module-kpi"><span>Custo registrado</span><strong id="manutencaoValor">R$ 0,00</strong></div>
+        <div class="module-kpi"><span>Pendentes</span><strong id="manutencaoPendentes">0</strong></div>
+      </div>
+
+      <div class="module-grid">
+        <section class="module-card">
+          <h2>Novo lancamento</h2>
+          <form id="formManutencao">
+            <div class="form-grid">
+              <div class="form-group"><label>Data *</label><input type="date" id="data" class="form-control"></div>
+              <div class="form-group"><label>Veiculo *</label><select id="veiculo" class="form-control" data-select-veiculos></select></div>
+              <div class="form-group"><label>Tipo *</label><select id="tipo" class="form-control"><option>Revisao</option><option>Preventiva</option><option>Corretiva</option><option>Pneu</option><option>Eletrica</option></select></div>
+              <div class="form-group"><label>KM</label><input type="number" id="km" class="form-control" min="0"></div>
+              <div class="form-group"><label>Oficina</label><input type="text" id="oficina" class="form-control"></div>
+              <div class="form-group"><label>Valor</label><input type="number" id="valor" class="form-control" step="0.01" min="0"></div>
+              <div class="form-group" style="grid-column:span 2;"><label>Item / servico *</label><input type="text" id="item" class="form-control" placeholder="Ex: troca de oleo, freio, alinhamento"></div>
+              <div class="form-group"><label>Status</label><select id="status" class="form-control"><option>Pendente</option><option>Em andamento</option><option>Concluido</option><option>Cancelado</option></select></div>
+              <div class="form-group" style="grid-column:span 2;"><label>Observacao</label><textarea id="observacao" class="form-control" rows="3"></textarea></div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" data-clear-operacional>Limpar</button>
+              <button type="submit" class="btn btn-primary">Salvar manutencao</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="module-card module-table-card">
+          <h2>Manutencoes recentes</h2>
+          <div class="table-container">
+            <table>
+              <thead><tr><th>Data</th><th>Veiculo</th><th>Tipo</th><th>Item</th><th>KM</th><th>Oficina</th><th>Valor</th><th>Status</th></tr></thead>
+              <tbody id="tabelaManutencoes"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <script src="../assets/js/app.js"></script>
+</body>
+</html>
