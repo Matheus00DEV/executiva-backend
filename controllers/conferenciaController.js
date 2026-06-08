@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { executarSchemaSync } = require('../utils/schemaGuard');
 
 const STATUS = ['pendente', 'aprovado', 'recusado'];
 const TIPOS = ['SemAlteracao', 'Troca', 'Instalacao', 'Retirada', 'Atualizacao', 'Baixa'];
@@ -78,7 +79,7 @@ function mapConferencia(row) {
 
 async function garantirTabelaConferencias() {
   if (!tableReadyPromise) {
-    tableReadyPromise = db.query(`
+    tableReadyPromise = executarSchemaSync('Conferencias_Pneus', () => db.query(`
       CREATE TABLE IF NOT EXISTS "Conferencias_Pneus" (
         id BIGSERIAL PRIMARY KEY,
         data_conferencia DATE NOT NULL,
@@ -111,7 +112,7 @@ async function garantirTabelaConferencias() {
 
       CREATE INDEX IF NOT EXISTS idx_conferencias_pneus_veiculo
       ON "Conferencias_Pneus" (placa_veiculo);
-    `);
+    `));
   }
 
   return tableReadyPromise;

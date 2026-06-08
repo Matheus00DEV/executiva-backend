@@ -1,9 +1,11 @@
 const db = require('../config/db');
 const { hashPassword, verifyPassword } = require('../utils/password');
 const { signToken } = require('../utils/token');
+const { executarSchemaSync } = require('../utils/schemaGuard');
 
 const PERFIS = ['admin', 'assistente', 'motorista'];
 const STATUS = ['pendente', 'aprovado', 'recusado', 'bloqueado'];
+const MIN_PASSWORD_LENGTH = Number(process.env.MIN_PASSWORD_LENGTH || 8);
 
 let tableReadyPromise = null;
 
@@ -61,13 +63,15 @@ function validarCadastro({ nome, usuario, senha }) {
     erros.push('Usuario deve ter 3 a 60 caracteres e usar apenas letras, numeros, ponto, traco ou underline.');
   }
   if (!String(senha || '').trim()) erros.push('Informe a senha.');
-  if (String(senha || '').length < 4) erros.push('Use uma senha com pelo menos 4 caracteres.');
+  if (String(senha || '').length < MIN_PASSWORD_LENGTH) {
+    erros.push(`Use uma senha com pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+  }
   return erros;
 }
 
 async function garantirTabelaUsuarios() {
   if (!tableReadyPromise) {
-    tableReadyPromise = db.query(`
+    tableReadyPromise = executarSchemaSync('gestao_de_pneu', () => db.query(`
       CREATE TABLE IF NOT EXISTS gestao_de_pneu (
         id BIGSERIAL PRIMARY KEY,
         nome VARCHAR(120) NOT NULL,
@@ -118,7 +122,7 @@ async function garantirTabelaUsuarios() {
       ALTER TABLE gestao_de_pneu
       ADD CONSTRAINT chk_perfil_gestao_pneu
       CHECK (perfil IN ('admin', 'assistente', 'motorista'));
-    `);
+    `));
   }
 
   return tableReadyPromise;
@@ -299,8 +303,8 @@ async function atualizarMeuAcesso(req, res) {
     if (!/^[a-z0-9._-]{3,60}$/.test(usuario)) {
       return res.status(400).json({ error: 'Usuario deve ter 3 a 60 caracteres e usar apenas letras, numeros, ponto, traco ou underline.' });
     }
-    if (novaSenha && novaSenha.length < 4) {
-      return res.status(400).json({ error: 'Use uma nova senha com pelo menos 4 caracteres.' });
+    if (novaSenha && novaSenha.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({ error: `Use uma nova senha com pelo menos ${MIN_PASSWORD_LENGTH} caracteres.` });
     }
 
     const atual = await db.query('SELECT * FROM gestao_de_pneu WHERE id = $1 LIMIT 1', [id]);
@@ -495,7 +499,9 @@ async function alterarSenha(req, res) {
 
     const id = Number(req.params.id);
     const senha = String(req.body.senha || '');
-    if (!id || senha.length < 4) return res.status(400).json({ error: 'Informe uma senha com pelo menos 4 caracteres.' });
+    if (!id || senha.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({ error: `Informe uma senha com pelo menos ${MIN_PASSWORD_LENGTH} caracteres.` });
+    }
 
     const update = await db.query(`
       UPDATE gestao_de_pneu
