@@ -3,6 +3,8 @@ const crypto = require('crypto');
 
 const DEFAULT_EXPIRES_IN = '12h';
 const MIN_SECRET_LENGTH = 32;
+const DEFAULT_ISSUER = 'executiva-frota';
+const DEFAULT_AUDIENCE = 'executiva-frota-web';
 let devSecret = '';
 
 function isProduction() {
@@ -54,7 +56,9 @@ function signToken(usuario) {
   return jwt.sign(payloadUsuario(usuario), authSecret(), {
     subject: String(usuario.id),
     expiresIn: process.env.JWT_EXPIRES_IN || DEFAULT_EXPIRES_IN,
-    issuer: process.env.JWT_ISSUER || 'executiva-frota'
+    issuer: process.env.JWT_ISSUER || DEFAULT_ISSUER,
+    audience: process.env.JWT_AUDIENCE || DEFAULT_AUDIENCE,
+    algorithm: 'HS256'
   });
 }
 
@@ -64,7 +68,9 @@ function verifyToken(token) {
   try {
     validarConfiguracaoToken();
     return jwt.verify(token, authSecret(), {
-      issuer: process.env.JWT_ISSUER || 'executiva-frota'
+      issuer: process.env.JWT_ISSUER || DEFAULT_ISSUER,
+      audience: process.env.JWT_AUDIENCE || DEFAULT_AUDIENCE,
+      algorithms: ['HS256']
     });
   } catch {
     return null;
