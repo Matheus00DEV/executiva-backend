@@ -44,6 +44,38 @@ function authHeaders(headers = {}) {
   };
 }
 
+let sessaoApiEncerrada = false;
+
+function respostaExigeLogout(res, data = {}) {
+  if (res.status === 401) return true;
+  if (res.status !== 403) return false;
+  return /sessao|login|bloque|recusad|aguardando|nao esta ativo/i.test(String(data.error || data.message || ''));
+}
+
+function encerrarSessaoApi(mensagem = 'Sessao expirada. Faca login novamente.') {
+  if (sessaoApiEncerrada) return;
+  sessaoApiEncerrada = true;
+  sessionStorage.removeItem(KEYS.USER);
+  sessionStorage.removeItem('authToken');
+  localStorage.removeItem(KEYS.USER);
+
+  if (!/login\.html$/i.test(window.location.pathname)) {
+    try { notificar(mensagem, 'error'); } catch {}
+    window.setTimeout(() => {
+      window.location.href = 'login.html';
+    }, 900);
+  }
+}
+
+async function fetchSeguro(url, options = {}) {
+  const res = await fetch(url, options);
+  if (res.status === 401 || res.status === 403) {
+    const data = await res.clone().json().catch(() => ({}));
+    if (respostaExigeLogout(res, data)) encerrarSessaoApi(data.error || data.message);
+  }
+  return res;
+}
+
 function asNumber(v) {
   if (v === null || v === undefined || v === '') return 0;
   const n = Number(v);
@@ -168,7 +200,7 @@ function normalizarDados(resource, dados) {
 
 async function fetchApiData(resource) {
   try {
-    const res = await fetch(`${API_URL}/${resource}`, {
+    const res = await fetchSeguro(`${API_URL}/${resource}`, {
       headers: authHeaders()
     });
     if (!res.ok) throw new Error(`Erro ao buscar ${resource}`);
@@ -201,7 +233,7 @@ async function sincronizarDadosBanco(resources = null) {
 
 async function fetchMotoristas() {
   try {
-    const res = await fetch(`${API_URL}/motoristas`, {
+    const res = await fetchSeguro(`${API_URL}/motoristas`, {
       headers: authHeaders()
     });
     if (!res.ok) throw new Error('Erro ao buscar motoristas');
@@ -213,7 +245,7 @@ async function fetchMotoristas() {
 }
 
 async function apiSalvarMotorista(motorista) {
-  const res = await fetch(`${API_URL}/motoristas`, {
+  const res = await fetchSeguro(`${API_URL}/motoristas`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(motorista)
@@ -223,7 +255,7 @@ async function apiSalvarMotorista(motorista) {
 }
 
 async function apiAtualizarMotorista(cpf, motorista) {
-  const res = await fetch(`${API_URL}/motoristas/${cpf}`, {
+  const res = await fetchSeguro(`${API_URL}/motoristas/${cpf}`, {
     method: 'PUT',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(motorista)
@@ -233,7 +265,7 @@ async function apiAtualizarMotorista(cpf, motorista) {
 }
 
 async function apiExcluirMotorista(cpf) {
-  const res = await fetch(`${API_URL}/motoristas/${cpf}`, {
+  const res = await fetchSeguro(`${API_URL}/motoristas/${cpf}`, {
     method: 'DELETE',
     headers: authHeaders()
   });
@@ -242,7 +274,7 @@ async function apiExcluirMotorista(cpf) {
 }
 
 async function apiSalvarVeiculo(veiculo) {
-  const res = await fetch(`${API_URL}/veiculos`, {
+  const res = await fetchSeguro(`${API_URL}/veiculos`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(veiculo)
@@ -253,7 +285,7 @@ async function apiSalvarVeiculo(veiculo) {
 }
 
 async function apiAtualizarVeiculo(id, veiculo) {
-  const res = await fetch(`${API_URL}/veiculos/${encodeURIComponent(id)}`, {
+  const res = await fetchSeguro(`${API_URL}/veiculos/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(veiculo)
@@ -264,7 +296,7 @@ async function apiAtualizarVeiculo(id, veiculo) {
 }
 
 async function apiExcluirVeiculo(id) {
-  const res = await fetch(`${API_URL}/veiculos/${encodeURIComponent(id)}`, {
+  const res = await fetchSeguro(`${API_URL}/veiculos/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: authHeaders()
   });
@@ -274,7 +306,7 @@ async function apiExcluirVeiculo(id) {
 }
 
 async function apiSalvarPneu(pneu) {
-  const res = await fetch(`${API_URL}/pneus`, {
+  const res = await fetchSeguro(`${API_URL}/pneus`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(pneu)
@@ -285,7 +317,7 @@ async function apiSalvarPneu(pneu) {
 }
 
 async function apiSalvarMovimentacao(movimentacao) {
-  const res = await fetch(`${API_URL}/movimentacoes`, {
+  const res = await fetchSeguro(`${API_URL}/movimentacoes`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(movimentacao)
@@ -296,7 +328,7 @@ async function apiSalvarMovimentacao(movimentacao) {
 }
 
 async function apiAtualizarMovimentacao(id, movimentacao) {
-  const res = await fetch(`${API_URL}/movimentacoes/${encodeURIComponent(id)}`, {
+  const res = await fetchSeguro(`${API_URL}/movimentacoes/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(movimentacao)
@@ -307,7 +339,7 @@ async function apiAtualizarMovimentacao(id, movimentacao) {
 }
 
 async function apiExcluirMovimentacao(id) {
-  const res = await fetch(`${API_URL}/movimentacoes/${encodeURIComponent(id)}`, {
+  const res = await fetchSeguro(`${API_URL}/movimentacoes/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: authHeaders()
   });
@@ -318,7 +350,7 @@ async function apiExcluirMovimentacao(id) {
 
 async function fetchConferencias(status = '') {
   const query = status ? `?status=${encodeURIComponent(status)}` : '';
-  const res = await fetch(`${API_URL}/conferencias${query}`, {
+  const res = await fetchSeguro(`${API_URL}/conferencias${query}`, {
     headers: authHeaders()
   });
   const data = await res.json().catch(() => []);
@@ -328,7 +360,7 @@ async function fetchConferencias(status = '') {
 }
 
 async function apiCriarConferencia(conferencia) {
-  const res = await fetch(`${API_URL}/conferencias`, {
+  const res = await fetchSeguro(`${API_URL}/conferencias`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(conferencia)
@@ -339,7 +371,7 @@ async function apiCriarConferencia(conferencia) {
 }
 
 async function apiAtualizarStatusConferencia(id, status, motivo = '') {
-  const res = await fetch(`${API_URL}/conferencias/${encodeURIComponent(id)}/status`, {
+  const res = await fetchSeguro(`${API_URL}/conferencias/${encodeURIComponent(id)}/status`, {
     method: 'PUT',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ status, motivo })
@@ -726,9 +758,133 @@ function acaoAbrirAba(target) {
   if (aba) aba.click();
 }
 
+function origemFiltrosPagina() {
+  const movido = document.querySelector('.filter-drawer-fields[data-filter-drawer-source="1"]');
+  if (movido) return movido;
+  const seletores = {
+    'veiculos-page': '#tab-lista .filtros-row',
+    'motoristas-page': '#tab-lista .filtros-row',
+    'pneus-page': '#tab-lista .filtros-row',
+    'movimentacao-page': '.movement-filter-grid',
+    'acerto-viagem-page': '.legacy-filter-grid',
+    'relatorios-page': '.report-filter-card, .filtro-inline'
+  };
+  const seletor = seletores[document.body.id] || '.filtros-row, .movement-filter-grid, .legacy-filter-grid';
+  return document.querySelector(seletor);
+}
+
+function tituloFiltrosPagina() {
+  const titulos = {
+    'veiculos-page': 'Filtrar veiculos',
+    'motoristas-page': 'Filtrar motoristas',
+    'pneus-page': 'Filtrar pneus',
+    'movimentacao-page': 'Filtrar movimentacoes',
+    'acerto-viagem-page': 'Filtrar viagens',
+    'relatorios-page': 'Filtrar relatorio'
+  };
+  return titulos[document.body.id] || 'Filtrar';
+}
+
+function garantirGavetaFiltros() {
+  let overlay = document.querySelector('.filter-drawer-overlay');
+  if (overlay) return overlay;
+
+  overlay = document.createElement('div');
+  overlay.className = 'filter-drawer-overlay';
+  overlay.innerHTML = `
+    <div class="filter-drawer-backdrop" onclick="fecharGavetaFiltros()"></div>
+    <aside class="filter-drawer" role="dialog" aria-modal="true" aria-labelledby="filterDrawerTitle">
+      <header class="filter-drawer-header">
+        <div>${iconeLucide('list-filter', '')}<strong id="filterDrawerTitle">Filtrar</strong></div>
+        <button type="button" class="filter-drawer-close" onclick="fecharGavetaFiltros()" aria-label="Fechar">${iconeLucide('x', 'X')}</button>
+      </header>
+      <div class="filter-drawer-body" id="filterDrawerBody"></div>
+      <footer class="filter-drawer-footer">
+        <button type="button" class="btn btn-secondary" onclick="limparFiltrosPagina()">Limpar campos</button>
+        <button type="button" class="btn btn-primary" onclick="aplicarFiltrosPagina()">Filtrar ${iconeLucide('chevron-right', '>')}</button>
+      </footer>
+    </aside>
+  `;
+  document.body.appendChild(overlay);
+  ativarIconesInterface();
+  return overlay;
+}
+
+function prepararFonteFiltrosParaGaveta(origem) {
+  if (!origem) return null;
+  if (!origem.dataset.filterDrawerSource) {
+    origem.dataset.filterDrawerSource = '1';
+    origem.__filterOriginalParent = origem.parentElement;
+    origem.__filterOriginalNext = origem.nextElementSibling;
+  }
+  origem.classList.add('filter-drawer-fields');
+  return origem;
+}
+
+function abrirGavetaFiltros() {
+  const origem = origemFiltrosPagina();
+  if (!origem) {
+    const filtro = document.querySelector('#buscaVeiculo, #buscaPneu, #buscaMovimentacao, input[type="search"], input[placeholder*="Buscar"]');
+    if (filtro?.focus) filtro.focus();
+    return;
+  }
+
+  if (document.body.id === 'veiculos-page') acaoAbrirAba('tab-lista');
+  if (document.body.id === 'pneus-page') acaoAbrirAba('tab-lista');
+  const overlay = garantirGavetaFiltros();
+  const body = $('filterDrawerBody');
+  const titulo = $('filterDrawerTitle');
+  if (titulo) titulo.textContent = tituloFiltrosPagina();
+  if (body) body.appendChild(prepararFonteFiltrosParaGaveta(origem));
+  overlay.classList.add('is-open');
+  document.body.classList.add('filter-drawer-open');
+  setTimeout(() => {
+    const primeiro = body?.querySelector('input:not([type="hidden"]), select, textarea');
+    if (primeiro?.focus) primeiro.focus();
+  }, 80);
+}
+
+function fecharGavetaFiltros() {
+  document.querySelector('.filter-drawer-overlay')?.classList.remove('is-open');
+  document.body.classList.remove('filter-drawer-open');
+}
+
+function executarRenderFiltrosPagina() {
+  const renderizadores = {
+    'veiculos-page': () => { acaoAbrirAba('tab-lista'); renderVeiculos(); },
+    'motoristas-page': () => renderMotoristas(),
+    'pneus-page': () => { acaoAbrirAba('tab-lista'); renderPneus(); },
+    'movimentacao-page': () => renderHistoricoMov(),
+    'acerto-viagem-page': () => renderTabelaAcertosViagem(MODULOS_OPERACIONAIS['acerto-viagem-page'])
+  };
+  const executar = renderizadores[document.body.id];
+  if (executar) executar();
+}
+
+function aplicarFiltrosPagina() {
+  executarRenderFiltrosPagina();
+  fecharGavetaFiltros();
+}
+
+function limparFiltrosPagina() {
+  const origem = origemFiltrosPagina() || $('filterDrawerBody');
+  if (!origem) return;
+  origem.querySelectorAll('input, select, textarea').forEach(campo => {
+    if (campo.type === 'checkbox' || campo.type === 'radio') campo.checked = false;
+    else campo.value = '';
+    campo.classList.remove('is-invalid');
+    campo.dispatchEvent(new Event(campo.type === 'checkbox' || campo.type === 'radio' ? 'change' : 'input', { bubbles: true }));
+  });
+
+  if ($('filtroAcertoTodas')) $('filtroAcertoTodas').checked = true;
+  if ($('filtroAcertoStatusTodas')) $('filtroAcertoStatusTodas').checked = true;
+  const movTodos = document.querySelector('input[name="filtroMovSituacao"][value=""]');
+  if (movTodos) movTodos.checked = true;
+  executarRenderFiltrosPagina();
+}
+
 function acaoFiltrarPagina() {
-  const filtro = document.querySelector('#buscaVeiculo, #buscaPneu, #buscaMovimentacao, .filtros-row .form-control, input[type="search"], input[placeholder*="Buscar"]');
-  if (filtro?.focus) filtro.focus();
+  abrirGavetaFiltros();
 }
 
 function prepararAcoesPagina() {
@@ -747,9 +903,8 @@ function prepararAcoesPagina() {
       { label: 'Novo veiculo', icon: 'plus', action: 'acaoNovoRegistro()' }
     ],
     'pneus-page': [
-      { label: 'Painel', icon: 'gauge', action: "acaoAbrirAba('tab-painel')" },
+      { label: 'Filtrar', icon: 'list-filter', action: 'acaoFiltrarPagina()' },
       { label: 'Novo pneu', icon: 'plus', action: "acaoAbrirAba('tab-cadastro')" },
-      { label: 'Lista', icon: 'list-filter', action: "acaoAbrirAba('tab-lista')" },
       { label: 'Atualizar', icon: 'refresh-cw', action: 'location.reload()' }
     ],
     'movimentacao-page': [
@@ -1058,7 +1213,7 @@ async function apiUsuarios(path = '', options = {}) {
   const headers = authHeaders(options.headers || {});
   if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
 
-  const res = await fetch(`${API_URL}/usuarios${path}`, {
+  const res = await fetchSeguro(`${API_URL}/usuarios${path}`, {
     ...options,
     headers
   });
@@ -1221,7 +1376,12 @@ function initVeiculos() {
   });
   if ($('btnSalvarVeiculo')) $('btnSalvarVeiculo').addEventListener('click', salvarVeiculo);
   if ($('btnCancelarEdicaoVeiculo')) $('btnCancelarEdicaoVeiculo').addEventListener('click', limparFormularioVeiculo);
-  if ($('buscaVeiculo')) $('buscaVeiculo').addEventListener('input', renderVeiculos);
+  ['buscaVeiculo', 'filtroVeiculoPlaca', 'filtroVeiculoMarca', 'filtroVeiculoModelo',
+    'filtroVeiculoTipo', 'filtroVeiculoAno', 'filtroVeiculoMotorista'].forEach(id => {
+      const campo = $(id);
+      if (!campo) return;
+      campo.addEventListener(campo.tagName === 'SELECT' ? 'change' : 'input', renderVeiculos);
+    });
   if ($('btnEditarVeiculoDiagrama')) $('btnEditarVeiculoDiagrama').addEventListener('click', () => editarVeiculo($('btnEditarVeiculoDiagrama').dataset.id));
 
   const inputMotorista = $('veiculoMotorista');
@@ -1292,6 +1452,13 @@ function limparFormularioVeiculo() {
   if ($('btnCancelarEdicaoVeiculo')) $('btnCancelarEdicaoVeiculo').style.display = 'none';
 }
 
+function normalizarTipoFiltroVeiculo(valor) {
+  const texto = normalizarTextoCatalogo(valor).replace(/[^A-Z0-9]/g, '');
+  if (texto.includes('VANDERL')) return 'VANDERLEIA';
+  if (texto.includes('TRUCK')) return 'TRUCK';
+  return texto;
+}
+
 function editarVeiculo(id) {
   const veiculo = getData(KEYS.VEICULOS).find(v => v.id === id);
   if (!veiculo) return;
@@ -1310,8 +1477,23 @@ function editarVeiculo(id) {
 function renderVeiculos() {
   const tbody = $('corpoTabelaVeiculos'); if (!tbody) return;
   const veiculos = getData(KEYS.VEICULOS);
-  const busca = (getVal('buscaVeiculo') || '').toLowerCase();
-  const filtrados = veiculos.filter(v => !busca || (v.placa || '').toLowerCase().includes(busca) || (v.modelo || '').toLowerCase().includes(busca));
+  const busca = normalizarTextoCatalogo(getVal('buscaVeiculo'));
+  const placa = normalizarPlaca(getVal('filtroVeiculoPlaca'));
+  const marca = normalizarTextoCatalogo(getVal('filtroVeiculoMarca'));
+  const modelo = normalizarTextoCatalogo(getVal('filtroVeiculoModelo'));
+  const tipo = normalizarTipoFiltroVeiculo(getVal('filtroVeiculoTipo'));
+  const ano = String(getVal('filtroVeiculoAno') || '').trim();
+  const motorista = normalizarTextoCatalogo(getVal('filtroVeiculoMotorista'));
+  const filtrados = veiculos.filter(v => {
+    const textoGeral = normalizarTextoCatalogo([v.placa, v.marca, v.modelo, v.tipo, v.ano, v.motorista].filter(Boolean).join(' '));
+    return (!busca || textoGeral.includes(busca)) &&
+      (!placa || normalizarPlaca(v.placa).includes(placa)) &&
+      (!marca || normalizarTextoCatalogo(v.marca).includes(marca)) &&
+      (!modelo || normalizarTextoCatalogo(v.modelo).includes(modelo)) &&
+      (!tipo || normalizarTipoFiltroVeiculo(v.tipo) === tipo) &&
+      (!ano || String(v.ano || '').includes(ano)) &&
+      (!motorista || normalizarTextoCatalogo(v.motorista).includes(motorista));
+  });
   const exibidos = filtrados.slice(0, MAX_TABLE_ROWS);
   if ($('totalVeiculosLista')) $('totalVeiculosLista').textContent = filtrados.length;
   tbody.innerHTML = '';
@@ -1330,7 +1512,7 @@ function renderVeiculos() {
   });
   if (filtrados.length > exibidos.length) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td colspan="7" class="text-center">Mostrando ${exibidos.length} de ${filtrados.length}. Use a busca para localizar um registro especifico.</td>`;
+    tr.innerHTML = `<td colspan="7" class="text-center">Mostrando ${exibidos.length} de ${filtrados.length}. Use os filtros para localizar um registro especifico.</td>`;
     tbody.appendChild(tr);
   }
 }
@@ -1492,7 +1674,7 @@ function renderDiagrama(veiculo) {
       const p = item.pneu;
       const cpk = p ? cpkPneu(p) : null;
       return `<tr>
-        <td>${escapeHtml(item.local || '-')}</td>
+        <td>${escapeHtml(rotuloPosicaoPneu(item.local || '-'))}</td>
         <td>${p ? `<strong>${escapeHtml(p.numPneu)}</strong>` : '<span class="muted">Vazio</span>'}</td>
         <td>${p ? escapeHtml(p.marca || '-') : '-'}</td>
         <td>${p ? kmFormatado(p.kmRodadoTotal) : '-'}</td>
@@ -1561,6 +1743,46 @@ function posicaoLegadaParaTexto(valor) {
   return `${grupo.eixo}º Eixo - ${lado}`;
 }
 
+function rotuloLadoPneu(codigo) {
+  const mapa = {
+    LD: 'lado direito',
+    LE: 'lado esquerdo',
+    LDD: 'direito interno',
+    LDF: 'direito externo',
+    LED: 'esquerdo interno',
+    LEF: 'esquerdo externo'
+  };
+  return mapa[String(codigo || '').toUpperCase()] || codigo || '-';
+}
+
+function rotuloPosicaoPneu(valor) {
+  const bruto = String(valor ?? '').trim();
+  if (!bruto || bruto === '-') return 'Sem posicao';
+  const pos = normalizarPosicaoPneu(bruto);
+  if (!pos) return bruto;
+  if (pos === 'ESTOQUE') return 'Estoque';
+  if (pos.startsWith('STEP')) {
+    const numeroStep = pos.match(/\d+/)?.[0] || '';
+    return numeroStep ? `Step ${numeroStep}` : 'Step';
+  }
+  const eixo = pos.match(/(\d+).*EIXO/)?.[1];
+  const lado = ['LDD', 'LDF', 'LED', 'LEF', 'LD', 'LE'].find(codigo => pos.endsWith(codigo));
+  if (eixo && lado) return `${eixo}o eixo - ${rotuloLadoPneu(lado)}`;
+  return bruto;
+}
+
+function ordemPosicaoPneu(valor) {
+  const bruto = String(valor ?? '').trim();
+  const numeroLegado = Number(bruto);
+  if (Number.isInteger(numeroLegado) && numeroLegado > 0) return numeroLegado;
+  const pos = normalizarPosicaoPneu(bruto);
+  if (pos.startsWith('STEP')) return 900 + (Number(pos.match(/\d+/)?.[0]) || 1);
+  const eixo = Number(pos.match(/(\d+).*EIXO/)?.[1]) || 0;
+  const lado = ['LEF', 'LED', 'LDD', 'LDF', 'LE', 'LD'].find(codigo => pos.endsWith(codigo));
+  const ordemLado = { LE: 1, LD: 2, LEF: 1, LED: 2, LDD: 3, LDF: 4 };
+  return eixo ? eixo * 10 + (ordemLado[lado] || 9) : 999;
+}
+
 function renderRodaPneu(pos, pneu, linha = 'top') {
   const cpkNovo = pneu ? cpkPneu(pneu) : null;
   const estadoNovo = pneu && cpkNovo === null ? 'sem-km' : pneu && cpkNovo > 0.1 ? 'alto-cpk' : '';
@@ -1569,7 +1791,7 @@ function renderRodaPneu(pos, pneu, linha = 'top') {
       `Fogo: ${pneu.numPneu}`,
       `Marca: ${pneu.marca || '-'}`,
       `Medida: ${pneu.medida || '-'}`,
-      `Posicao: ${pos.nomeLocal || pos.codigo}`,
+      `Posicao: ${rotuloPosicaoPneu(pos.nomeLocal || pos.codigo)}`,
       `KM: ${kmFormatado(pneu.kmRodadoTotal)}`,
       `CPK: ${cpkNovo !== null ? cpkFormatado(cpkNovo) : '-'}`
     ].join('\n')
@@ -2086,7 +2308,7 @@ function verDetalhesPneu(num) {
   alert([
     `Pneu ${num}`,
     `Status: ${pneu.statusAtual || '-'}`,
-    `Veículo/local: ${pneu.veiculoAtual || '-'} / ${pneu.localAtual || '-'}`,
+    `Veículo/local: ${pneu.veiculoAtual || '-'} / ${rotuloPosicaoPneu(pneu.localAtual || '-')}`,
     `KM rodado: ${kmFormatado(pneu.kmRodadoTotal)}`,
     `Custo total: ${moeda(custoTotalPneu(pneu))}`,
     `CPK: ${cpk !== null ? cpkFormatado(cpk) : 'sem KM'}`,
@@ -2164,7 +2386,7 @@ function renderDetalhePneu(num) {
     </div>
 
     <div class="detail-kpi-grid">
-      <div class="detail-kpi"><span>Local atual</span><strong>${escapeHtml(pneu.veiculoAtual || '-')}</strong><small>${escapeHtml(pneu.localAtual || '-')}</small></div>
+      <div class="detail-kpi"><span>Local atual</span><strong>${escapeHtml(pneu.veiculoAtual || '-')}</strong><small>${escapeHtml(rotuloPosicaoPneu(pneu.localAtual || '-'))}</small></div>
       <div class="detail-kpi"><span>KM rodado</span><strong>${kmFormatado(pneu.kmRodadoTotal)}</strong><small>Baseado nos lancamentos</small></div>
       <div class="detail-kpi"><span>Custo total</span><strong>${moeda(custoTotalPneu(pneu))}</strong><small>Compra + recapagens</small></div>
       <div class="detail-kpi"><span>CPK</span><strong>${cpk !== null ? cpkFormatado(cpk) : '-'}</strong><small>${escapeHtml(diagnostico.texto)}</small></div>
@@ -2735,7 +2957,30 @@ async function excluirMovimentacao(id) {
 
 let conferenciaItensMotorista = [];
 
+function mostrarSecaoMotorista(secao) {
+  const alvo = secao || 'pneus';
+  document.querySelectorAll('[data-driver-panel]').forEach(panel => {
+    panel.classList.toggle('is-active', panel.dataset.driverPanel === alvo);
+  });
+  document.querySelectorAll('[data-driver-panel-target]').forEach(botao => {
+    const ativo = botao.dataset.driverPanelTarget === alvo;
+    botao.classList.toggle('is-active', ativo);
+    botao.setAttribute('aria-pressed', ativo ? 'true' : 'false');
+  });
+}
+
+function initDriverSections() {
+  document.querySelectorAll('[data-driver-panel-target]').forEach(botao => {
+    if (botao.dataset.bound) return;
+    botao.addEventListener('click', () => mostrarSecaoMotorista(botao.dataset.driverPanelTarget));
+    botao.dataset.bound = '1';
+  });
+  const ativo = document.querySelector('[data-driver-panel].is-active')?.dataset.driverPanel || 'pneus';
+  mostrarSecaoMotorista(ativo);
+}
+
 function initMotoristaApp(usuario) {
+  initDriverSections();
   if ($('driverUserName')) $('driverUserName').textContent = usuario.nome || usuario.usuario;
   if ($('dataMov') && !getVal('dataMov')) $('dataMov').value = new Date().toISOString().split('T')[0];
   if ($('numeroPneu')) $('numeroPneu').addEventListener('blur', () => preencherDadosAnteriores(getVal('numeroPneu')));
@@ -2749,13 +2994,14 @@ function initMotoristaApp(usuario) {
   renderItensConferenciaMotorista();
   renderHistoricoMotorista();
   initFormDriverLancamento(usuario);
+  initFormDriverAdiantamento(usuario);
   renderDriverLancamentos(usuario);
 }
 
 function pneusEsperadosDoVeiculo(placa) {
   return getData(KEYS.PNEUS)
     .filter(p => p.statusAtual === 'Rodando' && normalizarChave(p.veiculoAtual) === normalizarChave(placa))
-    .sort((a, b) => normalizarPosicaoPneu(a.localAtual).localeCompare(normalizarPosicaoPneu(b.localAtual)));
+    .sort((a, b) => ordemPosicaoPneu(a.localAtual) - ordemPosicaoPneu(b.localAtual));
 }
 
 function renderPneusEsperadosMotorista() {
@@ -2771,18 +3017,26 @@ function renderPneusEsperadosMotorista() {
     box.innerHTML = '<p class="driver-empty">Nenhum pneu rodando vinculado a este veiculo no sistema.</p>';
     return;
   }
-  box.innerHTML = pneus.map(p => `
+  box.innerHTML = pneus.map(p => {
+    const posicao = rotuloPosicaoPneu(p.localAtual);
+    const codigo = normalizarPosicaoPneu(p.localAtual);
+    const codigoHtml = codigo && codigo !== normalizarChave(posicao)
+      ? `<small class="driver-position-raw">Codigo: ${escapeHtml(codigo)}</small>`
+      : '';
+    return `
     <article class="driver-expected-item">
       <div>
-        <strong>${escapeHtml(p.localAtual || 'Sem posicao')}</strong>
+        <strong class="driver-position-label">${escapeHtml(posicao)}</strong>
         <span>Fogo ${escapeHtml(p.numPneu)} - ${escapeHtml(p.marca || '-')}</span>
+        ${codigoHtml}
       </div>
       <div class="driver-expected-actions">
         <button type="button" onclick="selecionarPneuConferenciaMotorista('${escapeHtml(p.numPneu)}','Atualizacao')">Atualizar</button>
         <button type="button" onclick="selecionarPneuConferenciaMotorista('${escapeHtml(p.numPneu)}','Troca')">Trocar</button>
         <button type="button" onclick="selecionarPneuConferenciaMotorista('${escapeHtml(p.numPneu)}','Retirada')">Retirar</button>
       </div>
-    </article>`).join('');
+    </article>`;
+  }).join('');
 }
 
 function preencherPosicaoConferencia(local) {
@@ -2873,7 +3127,7 @@ function renderItensConferenciaMotorista() {
       : `${escapeHtml(tipoMovimentacaoLabel(item.tipo))}: ${escapeHtml(item.numeroPneu)}`;
     return `<article class="driver-history-item">
       <strong>${titulo}</strong>
-      <span>${escapeHtml(item.localAtual || '-')}</span>
+      <span>${escapeHtml(rotuloPosicaoPneu(item.localAtual || '-'))}</span>
       <button class="driver-mini-action" type="button" onclick="removerItemConferenciaMotorista(${index})">Remover</button>
     </article>`;
   }).join('');
@@ -3043,7 +3297,7 @@ function renderDashboardEmpty(container, texto) {
 
 function localizacaoPneuDashboard(pneu) {
   const veiculo = pneu.veiculoAtual && pneu.veiculoAtual !== '-' ? pneu.veiculoAtual : 'Estoque';
-  const local = veiculo === 'Estoque' ? 'Estoque' : (pneu.localAtual && pneu.localAtual !== '-' ? pneu.localAtual : 'Sem posicao');
+  const local = veiculo === 'Estoque' ? 'Estoque' : rotuloPosicaoPneu(pneu.localAtual && pneu.localAtual !== '-' ? pneu.localAtual : 'Sem posicao');
   return { veiculo, local };
 }
 
@@ -3820,8 +4074,9 @@ function resumoItensConferencia(conferencia) {
   const itens = Array.isArray(conferencia.itens) ? conferencia.itens : [];
   if (!itens.length) return 'Sem alteracao';
   return itens.map(item => {
-    if (item.tipo === 'Troca') return `Troca ${item.pneuSaiu || '-'} -> ${item.pneuEntrou || '-'} (${item.localAtual || '-'})`;
-    return `${tipoMovimentacaoLabel(item.tipo)} ${item.numeroPneu || '-'} (${item.localAtual || '-'})`;
+    const posicao = rotuloPosicaoPneu(item.localAtual || '-');
+    if (item.tipo === 'Troca') return `Troca ${item.pneuSaiu || '-'} -> ${item.pneuEntrou || '-'} (${posicao})`;
+    return `${tipoMovimentacaoLabel(item.tipo)} ${item.numeroPneu || '-'} (${posicao})`;
   }).join('<br>');
 }
 
@@ -4257,6 +4512,28 @@ function acertoSelecionadoAtual() {
   return getData(KEYS.ACERTOS).find(item => item.id === id) || null;
 }
 
+function encontrarAcertoCompativelLancamento(lancamento) {
+  const motorista = normalizarChave(lancamento?.motorista);
+  const veiculo = normalizarPlaca(lancamento?.veiculo);
+  const data = dataIsoCurta(lancamento?.data);
+  if (!motorista || !veiculo) return null;
+
+  const statusFechado = new Set(['FINALIZADO', 'CANCELADO', 'ENCERRADO', 'ENCERRADA']);
+  const candidatos = getData(KEYS.ACERTOS)
+    .filter(acerto => !statusFechado.has(normalizarChave(acerto.status)))
+    .filter(acerto => normalizarChave(acerto.motorista) === motorista && normalizarPlaca(acerto.veiculo) === veiculo)
+    .sort((a, b) => String(b.dataSaida || b.criadoEm || '').localeCompare(String(a.dataSaida || a.criadoEm || '')));
+
+  if (!data) return candidatos[0] || null;
+  return candidatos.find(acerto => {
+    const inicio = dataIsoCurta(acerto.dataSaida);
+    const fim = dataIsoCurta(acerto.dataRetorno || acerto.dataAcerto);
+    if (inicio && data < inicio) return false;
+    if (fim && data > fim) return false;
+    return true;
+  }) || candidatos[0] || null;
+}
+
 function novoAcertoViagem(scroll = true) {
   if (!$('formAcertoViagem') && document.body.id === 'acerto-viagem-page') {
     window.location.href = 'acerto-viagem-detalhe.html';
@@ -4419,8 +4696,12 @@ function renderResumoAcertoSelecionado() {
   const acertoId = getVal('acertoId');
   const lancamentos = getData(KEYS.LANCAMENTOS_ACERTO)
     .filter(item => item.status === 'Aprovado' && item.acertoId === acertoId);
-  const despesasAprovadas = lancamentos.reduce((total, item) => total + asNumber(item.valor), 0);
+  const lancamentosDespesa = lancamentos.filter(item => tiposComValorNoAcerto(item) && !lancamentoEhAdiantamento(item));
+  const lancamentosAdiantamento = lancamentos.filter(item => lancamentoEhAdiantamento(item));
+  const despesasAprovadas = lancamentosDespesa.reduce((total, item) => total + asNumber(item.valor), 0);
+  const adiantamentosAprovados = lancamentosAdiantamento.reduce((total, item) => total + asNumber(item.valor), 0);
   if (acertoId && $('despesas')) setVal('despesas', despesasAprovadas ? String(despesasAprovadas) : '0');
+  if (acertoId && adiantamentosAprovados && $('adiantamento')) setVal('adiantamento', String(adiantamentosAprovados));
   const receita = asNumber(getVal('receita'));
   const adiantamento = asNumber(getVal('adiantamento'));
   const despesas = asNumber(getVal('despesas')) || despesasAprovadas;
@@ -4435,7 +4716,7 @@ function renderResumoAcertoSelecionado() {
   }
 
   const categoriasPadrao = ['Combustivel', 'Arla', 'Pecas', 'Oficina', 'Borracharia', 'Lavagem', 'Agenciamento', 'Pedagio', 'Outros'];
-  const porCategoria = lancamentos.reduce((acc, item) => {
+  const porCategoria = lancamentosDespesa.reduce((acc, item) => {
     const categoria = item.categoria || 'Outros';
     acc[categoria] = (acc[categoria] || 0) + asNumber(item.valor);
     return acc;
@@ -4644,29 +4925,42 @@ function statusLancamentoPendente(status) {
   return ['Pendente', 'Em analise', 'Aberto'].includes(status || '');
 }
 
+function lancamentoEhAdiantamento(item) {
+  const categoria = normalizarChave(item?.categoria || item?.descricao || '');
+  return item?.tipo === 'Solicitacao' && categoria.includes('ADIANTAMENTO');
+}
+
 function tiposComValorNoAcerto(item) {
-  return ['Despesa', 'Combustivel', 'Solicitacao'].includes(item.tipo);
+  return ['Despesa', 'Combustivel'].includes(item.tipo) || lancamentoEhAdiantamento(item);
 }
 
 function recalcularDespesasAprovadasAcertos() {
   const lancamentos = getData(KEYS.LANCAMENTOS_ACERTO);
   const acertos = getData(KEYS.ACERTOS);
   if (!acertos.length) return;
-  const totalPorAcerto = lancamentos.reduce((acc, item) => {
+  const totaisPorAcerto = lancamentos.reduce((acc, item) => {
     if (item.status !== 'Aprovado' || !item.acertoId || !tiposComValorNoAcerto(item)) return acc;
-    acc[item.acertoId] = (acc[item.acertoId] || 0) + asNumber(item.valor);
+    const campo = lancamentoEhAdiantamento(item) ? 'adiantamentos' : 'despesas';
+    acc[campo][item.acertoId] = (acc[campo][item.acertoId] || 0) + asNumber(item.valor);
     return acc;
-  }, {});
+  }, { despesas: {}, adiantamentos: {} });
   const atualizados = acertos.map(acerto => ({
     ...acerto,
-    despesas: totalPorAcerto[acerto.id] || 0
+    despesas: totaisPorAcerto.despesas[acerto.id] || 0,
+    adiantamento: totaisPorAcerto.adiantamentos[acerto.id] || asNumber(acerto.adiantamento)
   }));
   saveData(KEYS.ACERTOS, atualizados);
+}
+
+function sincronizarTipoLancamentoMotorista() {
+  const categoria = normalizarChave(getVal('driverLanCategoria'));
+  setVal('driverLanTipo', categoria === 'COMBUSTIVEL' ? 'Combustivel' : 'Despesa');
 }
 
 function criarLancamentoAcerto(origem, usuario = null) {
   const motoristaUsuario = usuario?.nome || usuario?.usuario || '';
   if (origem === 'motorista') {
+    sincronizarTipoLancamentoMotorista();
     return {
       id: gerarId(),
       origem,
@@ -4680,6 +4974,27 @@ function criarLancamentoAcerto(origem, usuario = null) {
       documento: getVal('driverLanDocumento'),
       descricao: getVal('driverLanDescricao'),
       anexos: arquivosDoInput($('driverLanAnexos')),
+      status: 'Pendente',
+      criadoEm: new Date().toISOString()
+    };
+  }
+
+  if (origem === 'motorista-adiantamento') {
+    const categoria = getVal('driverAdCategoria');
+    const descricao = getVal('driverAdDescricao');
+    return {
+      id: gerarId(),
+      origem,
+      acertoId: '',
+      tipo: 'Solicitacao',
+      data: getVal('driverAdData'),
+      motorista: motoristaCadastrado(motoristaUsuario) || motoristaUsuario,
+      veiculo: placaCadastrada(getVal('driverAdVeiculo')) || getVal('driverAdVeiculo'),
+      categoria,
+      valor: asNumber(getVal('driverAdValor')),
+      documento: '',
+      descricao: descricao || categoria,
+      anexos: arquivosDoInput($('driverAdAnexos')),
       status: 'Pendente',
       criadoEm: new Date().toISOString()
     };
@@ -4708,16 +5023,21 @@ function criarLancamentoAcerto(origem, usuario = null) {
 
 function validarLancamentoAcerto(item) {
   if (!item.tipo || !item.data || !item.motorista) return 'Informe tipo, data e motorista.';
+  if (String(item.origem || '').startsWith('motorista') && !item.veiculo) return 'Selecione o veiculo.';
   if (item.veiculo && !placaExisteCadastro(item.veiculo)) {
-    atualizarEstadoCampoPesquisavel($('lanVeiculo') || $('driverLanVeiculo'));
+    const campoVeiculo = item.origem === 'motorista-adiantamento'
+      ? $('driverAdVeiculo')
+      : (item.origem === 'motorista' ? $('driverLanVeiculo') : $('lanVeiculo'));
+    atualizarEstadoCampoPesquisavel(campoVeiculo);
     return `A placa ${item.veiculo} nao existe no cadastro de veiculos.`;
   }
-  if (item.motorista && !motoristaExisteCadastro(item.motorista) && item.origem !== 'motorista') {
+  if (item.motorista && !motoristaExisteCadastro(item.motorista) && !String(item.origem || '').startsWith('motorista')) {
     atualizarEstadoCampoPesquisavel($('lanMotorista'));
     return `O motorista ${item.motorista} nao existe no cadastro de motoristas.`;
   }
+  if (lancamentoEhAdiantamento(item) && asNumber(item.valor) <= 0) return 'Informe o valor do adiantamento.';
   if (item.tipo !== 'Solicitacao' && asNumber(item.valor) <= 0) return 'Informe o valor do lancamento.';
-  if (item.tipo === 'Solicitacao' && !item.descricao) return 'Descreva a solicitacao.';
+  if (item.tipo === 'Solicitacao' && !item.descricao && !item.categoria) return 'Descreva a solicitacao.';
   return '';
 }
 
@@ -4733,6 +5053,8 @@ function limparFormularioLancamentoAcerto(form) {
   if (form) form.reset();
   if ($('lanData')) $('lanData').value = new Date().toISOString().split('T')[0];
   if ($('driverLanData')) $('driverLanData').value = new Date().toISOString().split('T')[0];
+  if ($('driverAdData')) $('driverAdData').value = new Date().toISOString().split('T')[0];
+  sincronizarTipoLancamentoMotorista();
   preencherCombosOperacionais();
 }
 
@@ -4745,19 +5067,32 @@ function acoesLancamentoHtml(item) {
   </div>`;
 }
 
+function tipoLancamentoLabel(item) {
+  if (lancamentoEhAdiantamento(item)) return 'Adiantamento';
+  return item.tipo || '-';
+}
+
+function descricaoLancamento(item) {
+  const partes = [];
+  if (item.categoria) partes.push(item.categoria);
+  if (item.descricao && normalizarChave(item.descricao) !== normalizarChave(item.categoria)) partes.push(item.descricao);
+  if (item.documento) partes.push(`Doc: ${item.documento}`);
+  return partes.join(' | ') || '-';
+}
+
 function linhaBaseLancamento(item) {
   return {
     data: formatarDataDashboard(item.data),
     motorista: item.motorista || '-',
     veiculo: item.veiculo || '-',
-    tipo: item.tipo || '-',
+    tipo: tipoLancamentoLabel(item),
     categoria: item.categoria || '-',
     documento: item.documento || '-',
     valor: moeda(item.valor),
     anexos: nomesAnexosLancamento(item),
     status: `<span class="badge ${badgeStatusOperacional(item.status)}">${escapeHtml(item.status || '-')}</span>`,
     acoes: acoesLancamentoHtml(item),
-    descricao: item.descricao || '-'
+    descricao: descricaoLancamento(item)
   };
 }
 
@@ -4812,14 +5147,14 @@ function renderTabelaSolicitacoesLancamentos() {
     .slice()
     .reverse();
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhuma solicitacao recebida.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center">Nenhuma solicitacao recebida.</td></tr>';
     return;
   }
   tbody.innerHTML = lista.slice(0, MAX_TABLE_ROWS).map(item => {
     const l = linhaBaseLancamento(item);
     return `<tr>
       <td>${escapeHtml(l.data)}</td><td>${escapeHtml(l.motorista)}</td><td>${escapeHtml(l.veiculo)}</td>
-      <td>${escapeHtml(l.tipo)}</td><td>${escapeHtml(l.descricao)}</td><td>${l.anexos}</td>
+      <td>${escapeHtml(l.tipo)}</td><td>${escapeHtml(l.descricao)}</td><td>${l.valor}</td><td>${l.anexos}</td>
       <td>${l.status}</td><td>${l.acoes}</td>
     </tr>`;
   }).join('');
@@ -4859,13 +5194,17 @@ function renderDriverLancamentos(usuario) {
     listaEl.innerHTML = '<p class="driver-empty">Nenhum lancamento enviado.</p>';
     return;
   }
-  listaEl.innerHTML = lista.slice(0, 12).map(item => `
-    <article class="driver-history-item">
-      <strong>${escapeHtml(item.tipo)} - ${moeda(item.valor)}</strong>
-      <span>${escapeHtml(formatarDataDashboard(item.data))} | ${escapeHtml(item.categoria || '-')} | ${escapeHtml(item.status || '-')}</span>
-      <small>${escapeHtml(item.descricao || item.documento || '')}</small>
-    </article>
-  `).join('');
+  listaEl.innerHTML = lista.slice(0, 12).map(item => {
+    const label = tipoLancamentoLabel(item);
+    const statusClass = badgeStatusOperacional(item.status);
+    return `
+      <article class="driver-history-item">
+        <strong>${escapeHtml(label)} - ${moeda(item.valor)}</strong>
+        <span>${escapeHtml(formatarDataDashboard(item.data))} | ${escapeHtml(item.categoria || '-')}</span>
+        <small><span class="badge ${statusClass}">${escapeHtml(item.status || '-')}</span> ${escapeHtml(item.descricao || item.documento || '')}</small>
+      </article>
+    `;
+  }).join('');
 }
 
 function renderFluxoLancamentosAcerto(usuario = null) {
@@ -4885,8 +5224,11 @@ function alterarStatusLancamentoAcerto(id, status) {
   const idx = lista.findIndex(item => item.id === id);
   if (idx < 0) return;
   const acertoAtual = getVal('acertoId');
-  const vinculoAcerto = status === 'Aprovado' && acertoAtual && !lista[idx].acertoId
-    ? { acertoId: acertoAtual, acertoLabel: rotuloAcertoViagem(acertoSelecionadoAtual()) }
+  const acertoParaVincular = status === 'Aprovado' && !lista[idx].acertoId
+    ? (acertoAtual ? acertoSelecionadoAtual() : encontrarAcertoCompativelLancamento(lista[idx]))
+    : null;
+  const vinculoAcerto = acertoParaVincular
+    ? { acertoId: acertoParaVincular.id, acertoLabel: rotuloAcertoViagem(acertoParaVincular) }
     : {};
   lista[idx] = { ...lista[idx], ...vinculoAcerto, status, atualizadoEm: new Date().toISOString() };
   saveData(KEYS.LANCAMENTOS_ACERTO, lista);
@@ -4894,7 +5236,10 @@ function alterarStatusLancamentoAcerto(id, status) {
   const selecionado = getVal('acertoId');
   if (selecionado) preencherAcertoNoFormulario(getData(KEYS.ACERTOS).find(item => item.id === selecionado));
   renderFluxoLancamentosAcerto();
-  notificar(`Lancamento ${status.toLowerCase()}.`, status === 'Aprovado' ? 'success' : 'info');
+  const complemento = status === 'Aprovado' && !lista[idx].acertoId
+    ? ' Sem acerto aberto compativel para vincular automaticamente.'
+    : '';
+  notificar(`Lancamento ${status.toLowerCase()}.${complemento}`, status === 'Aprovado' ? 'success' : 'info');
 }
 
 function initFormLancamentoAcerto() {
@@ -4928,6 +5273,7 @@ function initFormDriverLancamento(usuario) {
   const form = $('formDriverLancamento');
   if (!form) return;
   if ($('driverLanData') && !getVal('driverLanData')) $('driverLanData').value = new Date().toISOString().split('T')[0];
+  sincronizarTipoLancamentoMotorista();
   if (form.dataset.bound) return;
   form.addEventListener('submit', event => {
     event.preventDefault();
@@ -4937,7 +5283,27 @@ function initFormDriverLancamento(usuario) {
     salvarLancamentoAcerto(item);
     limparFormularioLancamentoAcerto(form);
     renderDriverLancamentos(usuario);
-    notificar('Lancamento enviado para o escritorio.', 'success');
+    mostrarSecaoMotorista('historico');
+    notificar('Despesa enviada para o escritorio.', 'success');
+  });
+  form.dataset.bound = '1';
+}
+
+function initFormDriverAdiantamento(usuario) {
+  const form = $('formDriverAdiantamento');
+  if (!form) return;
+  if ($('driverAdData') && !getVal('driverAdData')) $('driverAdData').value = new Date().toISOString().split('T')[0];
+  if (form.dataset.bound) return;
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    const item = criarLancamentoAcerto('motorista-adiantamento', usuario);
+    const erro = validarLancamentoAcerto(item);
+    if (erro) return notificar(erro, 'error');
+    salvarLancamentoAcerto(item);
+    limparFormularioLancamentoAcerto(form);
+    renderDriverLancamentos(usuario);
+    mostrarSecaoMotorista('historico');
+    notificar('Solicitacao de adiantamento enviada.', 'success');
   });
   form.dataset.bound = '1';
 }
