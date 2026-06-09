@@ -153,16 +153,74 @@
       <section class="driver-card">
         <div class="driver-card-title">
           <span class="driver-card-kicker">Frota</span>
+          <h2>Abrir acerto de viagem</h2>
+          <p>Abra a viagem antes de lancar gastos. O escritorio vai conferir, aprovar e encerrar.</p>
+        </div>
+
+        <form id="formDriverNovoAcerto" class="driver-form">
+          <input type="hidden" id="driverAcertoCorrecaoId">
+          <div class="form-group">
+            <label>Veiculo *</label>
+            <select id="driverAcertoVeiculo" class="form-control select-veiculos"></select>
+          </div>
+
+          <div class="form-group">
+            <label>Data inicio *</label>
+            <input type="date" id="driverAcertoDataSaida" class="form-control">
+          </div>
+
+          <div class="form-group">
+            <label>Carregamento</label>
+            <input type="text" id="driverAcertoCarregamento" class="form-control" placeholder="Cidade, fazenda ou empresa">
+          </div>
+
+          <div class="form-group">
+            <label>Descarregamento</label>
+            <input type="text" id="driverAcertoDescarregamento" class="form-control" placeholder="Cidade, terminal ou cliente">
+          </div>
+
+          <div class="form-group">
+            <label>Valor da tonelada</label>
+            <input type="number" id="driverAcertoValorTonelada" class="form-control" step="0.01" min="0" placeholder="0.00">
+          </div>
+
+          <div class="form-group">
+            <label>Toneladas</label>
+            <input type="number" id="driverAcertoToneladas" class="form-control" step="0.001" min="0" placeholder="0.000">
+          </div>
+
+          <button class="driver-submit" type="submit">Abrir acerto</button>
+        </form>
+      </section>
+
+      <section class="driver-card driver-history">
+        <div class="driver-card-title">
+          <span class="driver-card-kicker">Frota</span>
+          <h2>Meus acertos</h2>
+          <p>Acompanhe viagens abertas, aprovadas, devolvidas para correcao e pagas.</p>
+        </div>
+        <div id="driverAcertosList" class="driver-history-list"></div>
+      </section>
+
+      <section class="driver-card">
+        <div class="driver-card-title">
+          <span class="driver-card-kicker">Frota</span>
           <h2>Lancar despesa do acerto</h2>
           <p>Use para combustivel, pedagio, manutencao e outros gastos feitos durante a viagem.</p>
         </div>
 
         <form id="formDriverLancamento" class="driver-form">
           <input type="hidden" id="driverLanTipo" value="Despesa">
+          <input type="hidden" id="driverLanCorrecaoDe">
 
           <div class="form-group">
             <label>Data *</label>
             <input type="date" id="driverLanData" class="form-control">
+          </div>
+
+          <div class="form-group">
+            <label>Acerto / viagem *</label>
+            <select id="driverLanAcerto" class="form-control"></select>
           </div>
 
           <div class="form-group">
@@ -186,6 +244,14 @@
           <div class="form-group">
             <label>Valor *</label>
             <input type="number" id="driverLanValor" class="form-control" step="0.01" min="0" placeholder="0.00">
+          </div>
+
+          <div class="form-group">
+            <label>Pago por *</label>
+            <select id="driverLanPagoPor" class="form-control">
+              <option value="motorista">Motorista</option>
+              <option value="empresa">Empresa</option>
+            </select>
           </div>
 
           <div class="form-group">
@@ -217,6 +283,7 @@
         </div>
 
         <form id="formDriverAdiantamento" class="driver-form">
+          <input type="hidden" id="driverAdCorrecaoDe">
           <div class="form-group">
             <label>Tipo de adiantamento *</label>
             <select id="driverAdCategoria" class="form-control">
@@ -230,6 +297,11 @@
           <div class="form-group">
             <label>Data *</label>
             <input type="date" id="driverAdData" class="form-control">
+          </div>
+
+          <div class="form-group">
+            <label>Acerto / viagem *</label>
+            <select id="driverAdAcerto" class="form-control"></select>
           </div>
 
           <div class="form-group">
