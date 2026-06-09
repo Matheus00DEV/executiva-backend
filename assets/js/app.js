@@ -920,8 +920,7 @@ function prepararAcoesPagina() {
     'acerto-viagem-detalhe-page': [
       { label: 'Consulta', icon: 'list-filter', href: 'acerto-viagem.html' },
       { label: 'Novo acerto', icon: 'plus', action: 'novoAcertoViagem()' },
-      { label: 'Salvar', icon: 'save', action: "document.getElementById('formAcertoViagem')?.requestSubmit()" },
-      { label: 'Lancamento', icon: 'receipt', action: "abrirGavetaLancamentoAcerto('Despesa')" }
+      { label: 'Salvar', icon: 'save', action: "document.getElementById('formAcertoViagem')?.requestSubmit()" }
     ],
     'despesas-page': [
       { label: 'Pendentes', icon: 'inbox', action: "document.getElementById('tabelaDespesas')?.scrollIntoView({behavior:'smooth',block:'start'})" },
@@ -4286,7 +4285,7 @@ const MODULOS_OPERACIONAIS = {
     pendentes: 'acertoPendentes',
     campos: ['numeroViagem', 'dataSaida', 'dataRetorno', 'dataAcerto', 'motorista', 'veiculo', 'origemDestino',
       'localCarregamento', 'ufCarregamento', 'localDescarregamento', 'ufDescarregamento',
-      'valorTonelada', 'toneladas', 'kmInicial', 'kmFinal', 'receita', 'despesas', 'adiantamento',
+      'valorTonelada', 'toneladas', 'kmInicial', 'kmFinal', 'receita', 'despesas', 'adiantamento', 'reembolsoMotorista', 'despesasEmpresa',
       'mediaLitrosKm', 'status', 'observacao', 'motivoDevolucao'],
     colunas: ['', 'No Viagem', 'Placa', 'Motorista', 'Data Inicio', 'Data Term.', 'Km Perc.', 'Media Km', 'Status', 'Abrir'],
     montarLinha(item) {
@@ -4546,7 +4545,7 @@ function origemDestinoFormularioAcerto() {
 }
 
 function totaisLancamentosAcerto(acertoId) {
-  const base = { despesas: 0, adiantamentos: 0, aprovados: 0, pendentes: 0, solicitacoes: 0 };
+  const base = { despesas: 0, despesasEmpresa: 0, reembolsoMotorista: 0, adiantamentos: 0, aprovados: 0, pendentes: 0, solicitacoes: 0 };
   if (!acertoId) return base;
   return getData(KEYS.LANCAMENTOS_ACERTO).reduce((acc, item) => {
     if (item.acertoId !== acertoId) return acc;
@@ -4555,7 +4554,11 @@ function totaisLancamentosAcerto(acertoId) {
     if (!statusLancamentoAprovado(item.status) || !tiposComValorNoAcerto(item)) return acc;
     acc.aprovados += asNumber(item.valor);
     if (lancamentoEhAdiantamento(item)) acc.adiantamentos += asNumber(item.valor);
-    else acc.despesas += asNumber(item.valor);
+    else {
+      acc.despesas += asNumber(item.valor);
+      if (lancamentoPagoPeloMotorista(item)) acc.reembolsoMotorista += asNumber(item.valor);
+      else acc.despesasEmpresa += asNumber(item.valor);
+    }
     return acc;
   }, base);
 }
@@ -4596,7 +4599,7 @@ function novoAcertoViagem(scroll = true) {
   }
   ['acertoId', 'numeroViagem', 'dataSaida', 'dataRetorno', 'dataAcerto', 'motorista', 'veiculo', 'origemDestino',
     'localCarregamento', 'ufCarregamento', 'localDescarregamento', 'ufDescarregamento',
-    'valorTonelada', 'toneladas', 'kmInicial', 'kmFinal', 'receita', 'despesas', 'adiantamento',
+    'valorTonelada', 'toneladas', 'kmInicial', 'kmFinal', 'receita', 'despesas', 'adiantamento', 'reembolsoMotorista', 'despesasEmpresa',
     'mediaLitrosKm', 'status', 'observacao', 'motivoDevolucao'].forEach(id => setVal(id));
   setVal('numeroViagem', proximoNumeroViagem());
   setVal('dataAcerto', new Date().toISOString().split('T')[0]);
@@ -4633,6 +4636,8 @@ function preencherAcertoNoFormulario(item) {
   setVal('receita', calcularFreteAcerto(item) || '');
   setVal('despesas', item.despesas || '');
   setVal('adiantamento', item.adiantamento || '');
+  setVal('reembolsoMotorista', item.reembolsoMotorista || '');
+  setVal('despesasEmpresa', item.despesasEmpresa || '');
   setVal('mediaLitrosKm', item.mediaLitrosKm || '');
   setVal('status', item.status || 'Pendente');
   setVal('observacao', item.observacao || '');
@@ -4796,15 +4801,23 @@ function renderResumoAcertoSelecionado() {
   const lancamentosDespesa = lancamentos.filter(item => tiposComValorNoAcerto(item) && !lancamentoEhAdiantamento(item));
   const lancamentosAdiantamento = lancamentos.filter(item => lancamentoEhAdiantamento(item));
   const despesasAprovadas = lancamentosDespesa.reduce((total, item) => total + asNumber(item.valor), 0);
+  const despesasMotorista = lancamentosDespesa
+    .filter(item => lancamentoPagoPeloMotorista(item))
+    .reduce((total, item) => total + asNumber(item.valor), 0);
+  const despesasEmpresa = Math.max(0, despesasAprovadas - despesasMotorista);
   const adiantamentosAprovados = lancamentosAdiantamento.reduce((total, item) => total + asNumber(item.valor), 0);
   if (acertoId && $('despesas')) setVal('despesas', despesasAprovadas ? String(despesasAprovadas) : '0');
   if (acertoId && $('adiantamento')) setVal('adiantamento', String(adiantamentosAprovados || 0));
+  if (acertoId && $('reembolsoMotorista')) setVal('reembolsoMotorista', String(despesasMotorista || 0));
+  if (acertoId && $('despesasEmpresa')) setVal('despesasEmpresa', String(despesasEmpresa || 0));
   const receita = calcularFreteAcerto();
   if ($('receita')) setVal('receita', receita ? String(receita) : '0');
   const adiantamento = asNumber(getVal('adiantamento')) || adiantamentosAprovados;
   const despesas = asNumber(getVal('despesas')) || despesasAprovadas;
+  const reembolsoMotorista = asNumber(getVal('reembolsoMotorista')) || despesasMotorista;
+  const pagoEmpresa = asNumber(getVal('despesasEmpresa')) || despesasEmpresa;
   const resultadoOperacional = receita - despesas;
-  const saldoAcerto = despesas - adiantamento;
+  const saldoAcerto = reembolsoMotorista - adiantamento;
   if ($('freteCalculadoPreview')) $('freteCalculadoPreview').textContent = moeda(receita);
   if ($('resumoFretes')) $('resumoFretes').textContent = moeda(receita);
   if ($('resumoAdiantamentos')) $('resumoAdiantamentos').textContent = moeda(adiantamento);
@@ -4812,6 +4825,8 @@ function renderResumoAcertoSelecionado() {
   if ($('resumoReceitas')) $('resumoReceitas').textContent = moeda(receita);
   if ($('resumoDespesas')) $('resumoDespesas').textContent = moeda(despesas);
   if ($('resumoDespesasMini')) $('resumoDespesasMini').textContent = moeda(despesas);
+  if ($('resumoDespesasEmpresaMini')) $('resumoDespesasEmpresaMini').textContent = moeda(pagoEmpresa);
+  if ($('resumoReembolsoMotoristaMini')) $('resumoReembolsoMotoristaMini').textContent = moeda(reembolsoMotorista);
   if ($('resumoSaldoAcerto')) $('resumoSaldoAcerto').textContent = moeda(saldoAcerto);
   if ($('resumoSaldoAcertoMini')) $('resumoSaldoAcertoMini').textContent = moeda(saldoAcerto);
   if ($('resumoLucro')) {
@@ -4851,6 +4866,8 @@ function coletarFormularioOperacional(config) {
     const totais = totaisLancamentosAcerto(item.id);
     item.despesas = totais.despesas;
     item.adiantamento = totais.adiantamentos;
+    item.reembolsoMotorista = totais.reembolsoMotorista;
+    item.despesasEmpresa = totais.despesasEmpresa;
   }
   if (config.key === KEYS.MANUTENCOES) {
     item.veiculo = placaCadastrada(item.veiculo) || item.veiculo;
@@ -4949,7 +4966,7 @@ function initModuloOperacional() {
     initFiltrosAcertoViagem();
     if ($('formAcertoViagem')) {
       novoAcertoViagem(false);
-      ['valorTonelada', 'toneladas', 'receita', 'despesas', 'adiantamento', 'kmInicial', 'kmFinal'].forEach(id => {
+      ['valorTonelada', 'toneladas', 'receita', 'despesas', 'adiantamento', 'reembolsoMotorista', 'despesasEmpresa', 'kmInicial', 'kmFinal'].forEach(id => {
         const el = $(id);
         if (el && !el.dataset.summaryBound) {
           el.addEventListener('input', id === 'valorTonelada' || id === 'toneladas' ? atualizarFreteAcertoForm : renderResumoAcertoSelecionado);
@@ -5105,22 +5122,49 @@ function tiposComValorNoAcerto(item) {
   return ['Despesa', 'Combustivel'].includes(item.tipo) || lancamentoEhAdiantamento(item);
 }
 
+function pagamentoLancamento(item) {
+  const valor = normalizarChave(item?.pagoPor || item?.pago_por || item?.quemPagou || '');
+  if (['EMPRESA', 'EXECUTIVA', 'ESCRITORIO'].includes(valor)) return 'empresa';
+  if (['MOTORISTA', 'COLABORADOR'].includes(valor)) return 'motorista';
+  if (lancamentoEhAdiantamento(item)) return 'empresa';
+  return String(item?.origem || '').startsWith('motorista') ? 'motorista' : 'empresa';
+}
+
+function lancamentoPagoPeloMotorista(item) {
+  return pagamentoLancamento(item) === 'motorista';
+}
+
+function labelPagamentoLancamento(item) {
+  return lancamentoPagoPeloMotorista(item) ? 'Motorista' : 'Empresa';
+}
+
 function recalcularDespesasAprovadasAcertos() {
   const lancamentos = getData(KEYS.LANCAMENTOS_ACERTO);
   const acertos = getData(KEYS.ACERTOS);
   if (!acertos.length) return;
   const totaisPorAcerto = lancamentos.reduce((acc, item) => {
     if (!statusLancamentoAprovado(item.status) || !item.acertoId || !tiposComValorNoAcerto(item)) return acc;
-    const campo = lancamentoEhAdiantamento(item) ? 'adiantamentos' : 'despesas';
-    acc[campo][item.acertoId] = (acc[campo][item.acertoId] || 0) + asNumber(item.valor);
+    const valor = asNumber(item.valor);
+    if (lancamentoEhAdiantamento(item)) {
+      acc.adiantamentos[item.acertoId] = (acc.adiantamentos[item.acertoId] || 0) + valor;
+    } else {
+      acc.despesas[item.acertoId] = (acc.despesas[item.acertoId] || 0) + valor;
+      if (lancamentoPagoPeloMotorista(item)) {
+        acc.reembolsos[item.acertoId] = (acc.reembolsos[item.acertoId] || 0) + valor;
+      } else {
+        acc.empresa[item.acertoId] = (acc.empresa[item.acertoId] || 0) + valor;
+      }
+    }
     return acc;
-  }, { despesas: {}, adiantamentos: {} });
+  }, { despesas: {}, adiantamentos: {}, reembolsos: {}, empresa: {} });
   const atualizados = acertos.map(acerto => ({
     ...acerto,
     origemDestino: acerto.origemDestino && acerto.origemDestino !== '-' ? acerto.origemDestino : (resumoRotaAcerto(acerto) === '-' ? '' : resumoRotaAcerto(acerto)),
     receita: calcularFreteAcerto(acerto),
     despesas: totaisPorAcerto.despesas[acerto.id] || 0,
-    adiantamento: totaisPorAcerto.adiantamentos[acerto.id] || 0
+    adiantamento: totaisPorAcerto.adiantamentos[acerto.id] || 0,
+    reembolsoMotorista: totaisPorAcerto.reembolsos[acerto.id] || 0,
+    despesasEmpresa: totaisPorAcerto.empresa[acerto.id] || 0
   }));
   saveData(KEYS.ACERTOS, atualizados);
 }
@@ -5149,6 +5193,7 @@ function criarLancamentoAcerto(origem, usuario = null) {
       veiculo: acerto?.veiculo || placaCadastrada(getVal('driverLanVeiculo')) || getVal('driverLanVeiculo'),
       categoria: getVal('driverLanCategoria'),
       valor: asNumber(getVal('driverLanValor')),
+      pagoPor: getVal('driverLanPagoPor') || 'motorista',
       documento: getVal('driverLanDocumento'),
       descricao: getVal('driverLanDescricao'),
       anexos: arquivosDoInput($('driverLanAnexos')),
@@ -5200,6 +5245,7 @@ function criarLancamentoAcerto(origem, usuario = null) {
     veiculo: placaCadastrada(getVal('lanVeiculo')) || getVal('lanVeiculo'),
     categoria: getVal('lanCategoria'),
     valor: asNumber(getVal('lanValor')),
+    pagoPor: getVal('lanPagoPor') || 'empresa',
     documento: getVal('lanDocumento'),
     descricao: getVal('lanDescricao'),
     anexos: arquivosDoInput($('lanAnexos')),
@@ -5256,6 +5302,7 @@ function limparFormularioLancamentoAcerto(form) {
   if ($('driverAdData')) $('driverAdData').value = new Date().toISOString().split('T')[0];
   setVal('driverLanCorrecaoDe', '');
   setVal('driverAdCorrecaoDe', '');
+  setVal('driverLanPagoPor', 'motorista');
   sincronizarTipoLancamentoMotorista();
   preencherCombosOperacionais();
   preencherDriverAcertos();
@@ -5429,6 +5476,10 @@ function detalheLinhaLancamento(label, valor) {
   return `<div class="settlement-detail-line"><span>${escapeHtml(label)}</span><strong>${escapeHtml(valor || '-')}</strong></div>`;
 }
 
+function optionSelecionada(valorAtual, valor) {
+  return String(valorAtual || '') === String(valor || '') ? ' selected' : '';
+}
+
 function abrirDetalheLancamentoAcerto(id) {
   const item = getData(KEYS.LANCAMENTOS_ACERTO).find(registro => registro.id === id);
   if (!item) {
@@ -5440,7 +5491,9 @@ function abrirDetalheLancamentoAcerto(id) {
   const overlay = garantirGavetaAcerto();
   const body = $('settlementDrawerBody');
   const title = $('settlementDrawerTitle');
+  const status = normalizarStatusLancamento(item.status);
   const pendente = statusLancamentoPendente(item.status);
+  const podeAlterar = !['CANCELADO', 'SUBSTITUIDO'].includes(status);
   const anexos = Array.isArray(item.anexos) ? item.anexos : [];
   const acerto = item.acertoId
     ? getData(KEYS.ACERTOS).find(registro => registro.id === item.acertoId)
@@ -5461,6 +5514,8 @@ function abrirDetalheLancamentoAcerto(id) {
         ${detalheLinhaLancamento('Veiculo', item.veiculo)}
         ${detalheLinhaLancamento('Tipo', tipoLancamentoLabel(item))}
         ${detalheLinhaLancamento('Categoria', item.categoria)}
+        ${!lancamentoEhAdiantamento(item) ? detalheLinhaLancamento('Pago por', labelPagamentoLancamento(item)) : ''}
+        ${!lancamentoEhAdiantamento(item) ? detalheLinhaLancamento('Impacto no acerto', lancamentoPagoPeloMotorista(item) ? 'Reembolsar motorista no fechamento' : 'Custo pago pela empresa') : ''}
         ${detalheLinhaLancamento('Documento', item.documento)}
         ${detalheLinhaLancamento('Origem', item.origem === 'operacional' ? 'Escritorio' : 'Motorista')}
         ${detalheLinhaLancamento('Acerto / viagem', item.acertoLabel || (acerto ? rotuloAcertoViagem(acerto) : 'Sem vinculo'))}
@@ -5498,11 +5553,12 @@ function abrirDetalheLancamentoAcerto(id) {
 
     <div class="settlement-detail-actions">
       <button type="button" class="btn btn-secondary" onclick="fecharGavetaAcerto()">Fechar</button>
+      ${podeAlterar ? `<button type="button" class="btn btn-secondary" onclick="abrirEdicaoLancamentoAcerto('${escapeHtml(item.id)}')">Editar</button>` : ''}
       ${pendente ? `
         <button type="button" class="btn btn-primary" onclick="alterarStatusLancamentoAcerto('${escapeHtml(item.id)}','Aprovado'); abrirDetalheLancamentoAcerto('${escapeHtml(item.id)}')">Aprovar</button>
         <button type="button" class="btn btn-warning" onclick="alterarStatusLancamentoAcerto('${escapeHtml(item.id)}','Devolvido'); abrirDetalheLancamentoAcerto('${escapeHtml(item.id)}')">Voltar correcao</button>
-        <button type="button" class="btn btn-secondary" onclick="alterarStatusLancamentoAcerto('${escapeHtml(item.id)}','Cancelado'); abrirDetalheLancamentoAcerto('${escapeHtml(item.id)}')">Cancelar</button>
       ` : ''}
+      ${podeAlterar ? `<button type="button" class="btn btn-secondary" onclick="alterarStatusLancamentoAcerto('${escapeHtml(item.id)}','Cancelado'); abrirDetalheLancamentoAcerto('${escapeHtml(item.id)}')">Cancelar lancamento</button>` : ''}
     </div>
   `;
 
@@ -5511,20 +5567,148 @@ function abrirDetalheLancamentoAcerto(id) {
   ativarIconesInterface();
 }
 
+function abrirEdicaoLancamentoAcerto(id) {
+  const item = getData(KEYS.LANCAMENTOS_ACERTO).find(registro => registro.id === id);
+  if (!item) return notificar('Lancamento nao encontrado.', 'error');
+
+  const overlay = garantirGavetaAcerto();
+  const body = $('settlementDrawerBody');
+  const title = $('settlementDrawerTitle');
+  const pagoPor = pagamentoLancamento(item);
+  if (title) title.textContent = 'Editar lancamento';
+
+  body.innerHTML = `
+    <div class="settlement-drawer-intro">
+      <span>${escapeHtml(item.motorista || '-')} - ${escapeHtml(formatarDataDashboard(item.data))}</span>
+      <strong>Ajuste os dados conferidos pelo escritorio.</strong>
+    </div>
+
+    <form class="settlement-edit-form" onsubmit="event.preventDefault(); salvarEdicaoLancamentoAcerto('${escapeHtml(item.id)}','salvar')">
+      <div class="form-grid acerto-form-grid">
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" id="editLancData" class="form-control" value="${escapeHtml(dataIsoCurta(item.data))}">
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="editLancTipo" class="form-control">
+            <option${optionSelecionada(item.tipo, 'Despesa')}>Despesa</option>
+            <option${optionSelecionada(item.tipo, 'Combustivel')}>Combustivel</option>
+            <option${optionSelecionada(item.tipo, 'Solicitacao')}>Solicitacao</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Categoria</label>
+          <input type="text" id="editLancCategoria" class="form-control" value="${escapeHtml(item.categoria || '')}">
+        </div>
+        <div class="form-group">
+          <label>Valor</label>
+          <input type="number" id="editLancValor" class="form-control" step="0.01" min="0" value="${escapeHtml(item.valor || '')}">
+        </div>
+        <div class="form-group">
+          <label>Pago por</label>
+          <select id="editLancPagoPor" class="form-control">
+            <option value="motorista"${optionSelecionada(pagoPor, 'motorista')}>Motorista</option>
+            <option value="empresa"${optionSelecionada(pagoPor, 'empresa')}>Empresa</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Documento</label>
+          <input type="text" id="editLancDocumento" class="form-control" value="${escapeHtml(item.documento || '')}">
+        </div>
+        <div class="form-group field-full">
+          <label>Descricao</label>
+          <textarea id="editLancDescricao" class="form-control" rows="3">${escapeHtml(item.descricao || '')}</textarea>
+        </div>
+        <div class="form-group field-full">
+          <label>Motivo para voltar ao motorista</label>
+          <textarea id="editLancMotivo" class="form-control" rows="3" placeholder="Explique o que precisa corrigir se for devolver">${escapeHtml(item.motivoDevolucao || '')}</textarea>
+        </div>
+      </div>
+      <div class="settlement-detail-actions">
+        <button type="button" class="btn btn-secondary" onclick="abrirDetalheLancamentoAcerto('${escapeHtml(item.id)}')">Cancelar edicao</button>
+        <button type="submit" class="btn btn-primary">Salvar edicao</button>
+        <button type="button" class="btn btn-warning" onclick="salvarEdicaoLancamentoAcerto('${escapeHtml(item.id)}','devolver')">Salvar e voltar ao motorista</button>
+        <button type="button" class="btn btn-secondary" onclick="salvarEdicaoLancamentoAcerto('${escapeHtml(item.id)}','cancelar')">Cancelar lancamento</button>
+      </div>
+    </form>
+  `;
+
+  overlay.classList.add('is-open');
+  document.body.classList.add('settlement-drawer-open');
+}
+
+function salvarEdicaoLancamentoAcerto(id, acao = 'salvar') {
+  const lista = getData(KEYS.LANCAMENTOS_ACERTO);
+  const idx = lista.findIndex(item => item.id === id);
+  if (idx < 0) return notificar('Lancamento nao encontrado.', 'error');
+
+  const valor = asNumber(getVal('editLancValor'));
+  if (valor <= 0 && getVal('editLancTipo') !== 'Solicitacao') {
+    return notificar('Informe um valor valido para o lancamento.', 'error');
+  }
+
+  const motivo = getVal('editLancMotivo');
+  if (acao === 'devolver' && !motivo) {
+    return notificar('Informe o motivo para voltar o lancamento ao motorista.', 'error');
+  }
+
+  const atual = lista[idx];
+  const extras = {};
+  let status = atual.status;
+  if (acao === 'devolver') {
+    status = 'Devolvido';
+    extras.motivoDevolucao = motivo;
+    extras.devolvidoEm = new Date().toISOString();
+  }
+  if (acao === 'cancelar') {
+    const motivoCancelamento = motivo || prompt('Motivo do cancelamento (opcional):');
+    if (motivoCancelamento === null) return;
+    status = 'Cancelado';
+    extras.motivoCancelamento = String(motivoCancelamento || '').trim();
+    extras.canceladoEm = new Date().toISOString();
+  }
+
+  lista[idx] = {
+    ...atual,
+    data: getVal('editLancData') || atual.data,
+    tipo: getVal('editLancTipo') || atual.tipo,
+    categoria: getVal('editLancCategoria') || atual.categoria,
+    valor,
+    pagoPor: getVal('editLancPagoPor') || pagamentoLancamento(atual),
+    documento: getVal('editLancDocumento'),
+    descricao: getVal('editLancDescricao'),
+    ...extras,
+    status,
+    atualizadoEm: new Date().toISOString()
+  };
+
+  saveData(KEYS.LANCAMENTOS_ACERTO, lista);
+  recalcularDespesasAprovadasAcertos();
+  const selecionado = getVal('acertoId');
+  if (selecionado) preencherAcertoNoFormulario(getData(KEYS.ACERTOS).find(item => item.id === selecionado));
+  renderFluxoLancamentosAcerto();
+  abrirDetalheLancamentoAcerto(id);
+  notificar(acao === 'devolver' ? 'Lancamento voltou para o motorista.' : acao === 'cancelar' ? 'Lancamento cancelado.' : 'Lancamento atualizado.', acao === 'cancelar' ? 'info' : 'success');
+}
+
 function acoesLancamentoHtml(item) {
   const id = escapeHtml(item.id);
   const status = normalizarStatusLancamento(item.status);
   const abrir = `<button type="button" class="btn-mini" onclick="abrirDetalheLancamentoAcerto('${id}')">Abrir</button>`;
-  if (status === 'APROVADO') return `<div class="decision-actions is-readonly">${abrir}<span class="decision-note success">Aprovado</span></div>`;
-  if (status === 'DEVOLVIDO') return `<div class="decision-actions is-readonly">${abrir}<span class="decision-note warning">Em correcao</span></div>`;
+  const editar = `<button type="button" class="btn-mini" onclick="abrirEdicaoLancamentoAcerto('${id}')">Editar</button>`;
+  const cancelar = `<button type="button" class="btn-mini danger" onclick="alterarStatusLancamentoAcerto('${id}','Cancelado')">Cancelar</button>`;
+  if (status === 'APROVADO') return `<div class="decision-actions is-readonly">${abrir}${editar}${cancelar}<span class="decision-note success">Aprovado</span></div>`;
+  if (status === 'DEVOLVIDO') return `<div class="decision-actions is-readonly">${abrir}${editar}${cancelar}<span class="decision-note warning">Em correcao</span></div>`;
   if (status === 'SUBSTITUIDO') return `<div class="decision-actions is-readonly">${abrir}<span class="decision-note">Substituido</span></div>`;
   if (status === 'CANCELADO') return `<div class="decision-actions is-readonly">${abrir}<span class="decision-note danger">Cancelado</span></div>`;
-  if (!statusLancamentoPendente(item.status)) return `<div class="decision-actions is-readonly">${abrir}<span class="decision-note">${escapeHtml(item.status || 'Registrado')}</span></div>`;
+  if (!statusLancamentoPendente(item.status)) return `<div class="decision-actions is-readonly">${abrir}${editar}${cancelar}<span class="decision-note">${escapeHtml(item.status || 'Registrado')}</span></div>`;
   return `<div class="decision-actions">
     ${abrir}
+    ${editar}
     <button type="button" class="btn-mini success" onclick="alterarStatusLancamentoAcerto('${id}','Aprovado')">Aprovar</button>
     <button type="button" class="btn-mini warning" onclick="alterarStatusLancamentoAcerto('${id}','Devolvido')">Voltar</button>
-    <button type="button" class="btn-mini danger" onclick="alterarStatusLancamentoAcerto('${id}','Cancelado')">Cancelar</button>
+    ${cancelar}
   </div>`;
 }
 
@@ -5553,6 +5737,7 @@ function linhaBaseLancamento(item) {
     categoria: item.categoria || '-',
     documento: item.documento || '-',
     valor: moeda(item.valor),
+    pagoPor: labelPagamentoLancamento(item),
     anexos: nomesAnexosLancamento(item),
     status: `<span class="badge ${badgeStatusOperacional(item.status)}">${escapeHtml(item.status || '-')}</span>`,
     acoes: acoesLancamentoHtml(item),
@@ -5604,11 +5789,12 @@ function renderTabelasDetalheAcerto() {
         <td>${escapeHtml(l.data)}</td>
         <td>${escapeHtml(l.categoria)}</td>
         <td>${l.valor}</td>
+        <td>${escapeHtml(l.pagoPor)}</td>
         <td>${escapeHtml(l.documento)}</td>
         <td>${l.status}</td>
         <td>${l.acoes}</td>
       </tr>`;
-    }).join('') : '<tr><td colspan="6" class="text-center">Nenhuma despesa vinculada a este acerto.</td></tr>';
+    }).join('') : '<tr><td colspan="7" class="text-center">Nenhuma despesa vinculada a este acerto.</td></tr>';
   }
 
   if (solicitacoesBody) {
@@ -5634,7 +5820,7 @@ function renderTabelaDespesasLancamentos() {
     .slice()
     .reverse();
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="10" class="text-center">Nenhuma despesa ou combustivel recebido.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="text-center">Nenhuma despesa ou combustivel recebido.</td></tr>';
     return;
   }
   tbody.innerHTML = lista.slice(0, MAX_TABLE_ROWS).map(item => {
@@ -5642,7 +5828,7 @@ function renderTabelaDespesasLancamentos() {
     return `<tr>
       <td>${escapeHtml(l.data)}</td><td>${escapeHtml(l.motorista)}</td><td>${escapeHtml(l.veiculo)}</td>
       <td>${escapeHtml(l.tipo)}</td><td>${escapeHtml(l.categoria)}</td><td>${escapeHtml(l.documento)}</td>
-      <td>${l.valor}</td><td>${l.anexos}</td><td>${l.status}</td><td>${l.acoes}</td>
+      <td>${l.valor}</td><td>${escapeHtml(l.pagoPor)}</td><td>${l.anexos}</td><td>${l.status}</td><td>${l.acoes}</td>
     </tr>`;
   }).join('');
 }
@@ -5705,7 +5891,7 @@ function renderDriverLancamentos(usuario) {
   listaEl.innerHTML = lista.slice(0, 12).map(item => {
     const label = tipoLancamentoLabel(item);
     const statusClass = badgeStatusOperacional(item.status);
-    const devolvido = normalizarChave(item.status) === 'DEVOLVIDO';
+    const devolvido = statusLancamentoDevolvido(item.status);
     const motivo = item.motivoDevolucao ? `Correcao: ${item.motivoDevolucao}` : '';
     return `
       <article class="driver-history-item">
@@ -5765,6 +5951,7 @@ function corrigirLancamentoMotorista(id) {
     setVal('driverLanVeiculo', item.veiculo || '');
     setVal('driverLanCategoria', item.categoria || 'Outros');
     setVal('driverLanValor', item.valor || '');
+    setVal('driverLanPagoPor', pagamentoLancamento(item));
     setVal('driverLanDocumento', item.documento || '');
     setVal('driverLanDescricao', item.descricao || '');
     $('formDriverLancamento')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -5929,6 +6116,7 @@ function alterarStatusLancamentoAcerto(id, status) {
   }
   if (status === 'Aprovado') {
     extras.motivoDevolucao = '';
+    extras.pagoPor = atual.pagoPor || pagamentoLancamento(atual);
     extras.aprovadoEm = new Date().toISOString();
   }
   lista[idx] = { ...atual, ...vinculoAcerto, ...extras, status, atualizadoEm: new Date().toISOString() };
