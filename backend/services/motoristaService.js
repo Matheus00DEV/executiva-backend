@@ -60,13 +60,12 @@ class MotoristaService {
   }
 
   async excluir(cpf) {
-    await db.query(`
+    const { rowCount } = await db.query(`
       DELETE FROM "Motorista"
       WHERE "CPFMot" = $1
     `, [cpf]);
-    return true;
+    return rowCount > 0;
   }
 }
 
 module.exports = new MotoristaService();
-
