@@ -7501,8 +7501,13 @@ body.emitai-shell-layout {
   grid-template-columns: 1fr 1fr;
 }
 
+.settlement-edit-form .acerto-form-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
 .settlement-drawer-form .field-wide,
-.settlement-drawer-form .field-full {
+.settlement-drawer-form .field-full,
+.settlement-edit-form .field-full {
   grid-column: 1 / -1;
 }
 
