@@ -23,6 +23,8 @@ Aplicar a primeira camada de seguranca do sistema sem alterar estrutura do banco
 - Conferencia de usuario ativo a cada rota protegida, usando `AUTH_CHECK_USER_STATUS=true`.
 - Frontend limpa a sessao e volta ao login quando a API informa sessao expirada, usuario bloqueado ou acesso inativo.
 - Auto criacao/alteracao de tabelas bloqueada por padrao com `SCHEMA_SYNC_ENABLED=false`.
+- Respostas de erro interno dos controllers principais nao expõem mais `error.message` em producao; o cliente recebe mensagem generica e `requestId` para rastreio.
+- Listagem de motoristas, que inclui CPF/CNH/celular, agora exige perfil operacional no backend.
 
 ## Regra importante
 
