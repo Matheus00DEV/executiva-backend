@@ -913,7 +913,7 @@ function prepararAcoesPagina() {
       { label: 'Nova movimentacao', icon: 'repeat-2', action: 'acaoNovoRegistro()' }
     ],
     'acerto-viagem-page': [
-      { label: 'Filtrar', icon: 'list-filter', action: "document.getElementById('filtroAcertoNumero')?.focus()" },
+      { label: 'Filtrar', icon: 'list-filter', action: 'acaoFiltrarPagina()' },
       { label: 'Novo acerto', icon: 'plus', href: 'acerto-viagem-detalhe.html' },
       { label: 'Atualizar', icon: 'refresh-cw', action: 'location.reload()' }
     ],
@@ -921,7 +921,7 @@ function prepararAcoesPagina() {
       { label: 'Consulta', icon: 'list-filter', href: 'acerto-viagem.html' },
       { label: 'Novo acerto', icon: 'plus', action: 'novoAcertoViagem()' },
       { label: 'Salvar', icon: 'save', action: "document.getElementById('formAcertoViagem')?.requestSubmit()" },
-      { label: 'Lancamento', icon: 'receipt', action: "document.getElementById('formLancamentoAcerto')?.scrollIntoView({behavior:'smooth',block:'start'})" }
+      { label: 'Lancamento', icon: 'receipt', action: "abrirGavetaLancamentoAcerto('Despesa')" }
     ],
     'despesas-page': [
       { label: 'Pendentes', icon: 'inbox', action: "document.getElementById('tabelaDespesas')?.scrollIntoView({behavior:'smooth',block:'start'})" },
@@ -2993,9 +2993,12 @@ function initMotoristaApp(usuario) {
   renderPneusEsperadosMotorista();
   renderItensConferenciaMotorista();
   renderHistoricoMotorista();
+  initFormDriverNovoAcerto(usuario);
+  preencherDriverAcertos(usuario);
   initFormDriverLancamento(usuario);
   initFormDriverAdiantamento(usuario);
   renderDriverLancamentos(usuario);
+  renderDriverAcertos(usuario);
 }
 
 function pneusEsperadosDoVeiculo(placa) {
@@ -4281,19 +4284,23 @@ const MODULOS_OPERACIONAIS = {
     total: 'acertoTotal',
     valor: 'acertoValor',
     pendentes: 'acertoPendentes',
-    campos: ['numeroViagem', 'dataSaida', 'dataRetorno', 'dataAcerto', 'motorista', 'veiculo', 'origemDestino', 'kmInicial', 'kmFinal', 'receita', 'despesas', 'adiantamento', 'mediaLitrosKm', 'status', 'observacao'],
+    campos: ['numeroViagem', 'dataSaida', 'dataRetorno', 'dataAcerto', 'motorista', 'veiculo', 'origemDestino',
+      'localCarregamento', 'ufCarregamento', 'localDescarregamento', 'ufDescarregamento',
+      'valorTonelada', 'toneladas', 'kmInicial', 'kmFinal', 'receita', 'despesas', 'adiantamento',
+      'mediaLitrosKm', 'status', 'observacao', 'motivoDevolucao'],
     colunas: ['', 'No Viagem', 'Placa', 'Motorista', 'Data Inicio', 'Data Term.', 'Km Perc.', 'Media Km', 'Status', 'Abrir'],
     montarLinha(item) {
       const km = Math.max(0, asNumber(item.kmFinal) - asNumber(item.kmInicial));
-      const saldo = asNumber(item.receita) - asNumber(item.despesas) - asNumber(item.adiantamento);
+      const receita = calcularFreteAcerto(item);
+      const saldo = receita - asNumber(item.despesas);
       return [
         `${formatarDataDashboard(item.dataSaida)} a ${formatarDataDashboard(item.dataRetorno)}`,
-        item.motorista, item.veiculo, item.origemDestino, kmFormatado(km),
-        moeda(item.receita), moeda(item.despesas), moeda(saldo), item.status
+        item.motorista, item.veiculo, resumoRotaAcerto(item), kmFormatado(km),
+        moeda(receita), moeda(item.despesas), moeda(saldo), item.status
       ];
     },
     valorTotal(item) {
-      return asNumber(item.receita) - asNumber(item.despesas) - asNumber(item.adiantamento);
+      return calcularFreteAcerto(item) - asNumber(item.despesas);
     }
   },
   'manutencao-page': {
@@ -4492,10 +4499,10 @@ function preencherCombosOperacionais() {
 
 function badgeStatusOperacional(status) {
   const s = String(status || '').toLowerCase();
-  if (['aprovado', 'finalizado', 'pago', 'concluido'].includes(s)) return 'badge-success';
+  if (['aprovado', 'finalizado', 'pago', 'concluido', 'conferido'].includes(s)) return 'badge-success';
   if (['pendente', 'aberto', 'em analise', 'em andamento'].includes(s)) return 'badge-warning';
   if (['recusado', 'cancelado', 'vencido'].includes(s)) return 'badge-danger';
-  if (['devolvido', 'devolvida'].includes(s)) return 'badge-info';
+  if (['devolvido', 'devolvida', 'substituido'].includes(s)) return 'badge-info';
   return 'badge-info';
 }
 
@@ -4512,13 +4519,61 @@ function acertoSelecionadoAtual() {
   return getData(KEYS.ACERTOS).find(item => item.id === id) || null;
 }
 
+function calcularFreteAcerto(item = null) {
+  const valorTonelada = item ? asNumber(item.valorTonelada) : asNumber(getVal('valorTonelada'));
+  const toneladas = item ? asNumber(item.toneladas) : asNumber(getVal('toneladas'));
+  const calculado = valorTonelada * toneladas;
+  if (calculado > 0) return calculado;
+  return item ? asNumber(item.receita) : asNumber(getVal('receita'));
+}
+
+function resumoRotaAcerto(item = {}) {
+  const origem = [item.localCarregamento, item.ufCarregamento].filter(Boolean).join(' / ');
+  const destino = [item.localDescarregamento, item.ufDescarregamento].filter(Boolean).join(' / ');
+  if (origem || destino) return `${origem || '-'} -> ${destino || '-'}`;
+  return item.origemDestino || '-';
+}
+
+function origemDestinoFormularioAcerto() {
+  const item = {
+    localCarregamento: getVal('localCarregamento'),
+    ufCarregamento: getVal('ufCarregamento').toUpperCase(),
+    localDescarregamento: getVal('localDescarregamento'),
+    ufDescarregamento: getVal('ufDescarregamento').toUpperCase()
+  };
+  if (!item.localCarregamento && !item.ufCarregamento && !item.localDescarregamento && !item.ufDescarregamento) return '';
+  return resumoRotaAcerto(item);
+}
+
+function totaisLancamentosAcerto(acertoId) {
+  const base = { despesas: 0, adiantamentos: 0, aprovados: 0, pendentes: 0, solicitacoes: 0 };
+  if (!acertoId) return base;
+  return getData(KEYS.LANCAMENTOS_ACERTO).reduce((acc, item) => {
+    if (item.acertoId !== acertoId) return acc;
+    if (statusLancamentoPendente(item.status)) acc.pendentes += 1;
+    if (item.tipo === 'Solicitacao') acc.solicitacoes += 1;
+    if (!statusLancamentoAprovado(item.status) || !tiposComValorNoAcerto(item)) return acc;
+    acc.aprovados += asNumber(item.valor);
+    if (lancamentoEhAdiantamento(item)) acc.adiantamentos += asNumber(item.valor);
+    else acc.despesas += asNumber(item.valor);
+    return acc;
+  }, base);
+}
+
+function atualizarFreteAcertoForm() {
+  const frete = calcularFreteAcerto();
+  if ($('receita')) setVal('receita', frete ? String(frete) : '0');
+  if ($('freteCalculadoPreview')) $('freteCalculadoPreview').textContent = moeda(frete);
+  renderResumoAcertoSelecionado();
+}
+
 function encontrarAcertoCompativelLancamento(lancamento) {
   const motorista = normalizarChave(lancamento?.motorista);
   const veiculo = normalizarPlaca(lancamento?.veiculo);
   const data = dataIsoCurta(lancamento?.data);
   if (!motorista || !veiculo) return null;
 
-  const statusFechado = new Set(['FINALIZADO', 'CANCELADO', 'ENCERRADO', 'ENCERRADA']);
+  const statusFechado = new Set(['FINALIZADO', 'CANCELADO', 'ENCERRADO', 'ENCERRADA', 'PAGO', 'PAGA']);
   const candidatos = getData(KEYS.ACERTOS)
     .filter(acerto => !statusFechado.has(normalizarChave(acerto.status)))
     .filter(acerto => normalizarChave(acerto.motorista) === motorista && normalizarPlaca(acerto.veiculo) === veiculo)
@@ -4540,13 +4595,16 @@ function novoAcertoViagem(scroll = true) {
     return;
   }
   ['acertoId', 'numeroViagem', 'dataSaida', 'dataRetorno', 'dataAcerto', 'motorista', 'veiculo', 'origemDestino',
-    'kmInicial', 'kmFinal', 'receita', 'despesas', 'adiantamento', 'mediaLitrosKm', 'status', 'observacao'].forEach(id => setVal(id));
+    'localCarregamento', 'ufCarregamento', 'localDescarregamento', 'ufDescarregamento',
+    'valorTonelada', 'toneladas', 'kmInicial', 'kmFinal', 'receita', 'despesas', 'adiantamento',
+    'mediaLitrosKm', 'status', 'observacao', 'motivoDevolucao'].forEach(id => setVal(id));
   setVal('numeroViagem', proximoNumeroViagem());
   setVal('dataAcerto', new Date().toISOString().split('T')[0]);
-  if ($('status')) $('status').value = 'Pendente';
+  if ($('status')) $('status').value = 'Aberto';
   if ($('lanAcerto')) $('lanAcerto').value = '';
   if ($('acertoFormTitulo')) $('acertoFormTitulo').textContent = 'Novo acerto';
   if ($('acertoSelecionadoChip')) $('acertoSelecionadoChip').textContent = 'Nova viagem';
+  atualizarFreteAcertoForm();
   renderResumoAcertoSelecionado();
   if (document.body.id === 'acerto-viagem-detalhe-page') {
     window.history.replaceState({}, '', 'acerto-viagem-detalhe.html');
@@ -4564,19 +4622,27 @@ function preencherAcertoNoFormulario(item) {
   setVal('motorista', item.motorista || '');
   setVal('veiculo', item.veiculo || '');
   setVal('origemDestino', item.origemDestino || '');
+  setVal('localCarregamento', item.localCarregamento || '');
+  setVal('ufCarregamento', item.ufCarregamento || '');
+  setVal('localDescarregamento', item.localDescarregamento || '');
+  setVal('ufDescarregamento', item.ufDescarregamento || '');
+  setVal('valorTonelada', item.valorTonelada || '');
+  setVal('toneladas', item.toneladas || '');
   setVal('kmInicial', item.kmInicial || '');
   setVal('kmFinal', item.kmFinal || '');
-  setVal('receita', item.receita || '');
+  setVal('receita', calcularFreteAcerto(item) || '');
   setVal('despesas', item.despesas || '');
   setVal('adiantamento', item.adiantamento || '');
   setVal('mediaLitrosKm', item.mediaLitrosKm || '');
   setVal('status', item.status || 'Pendente');
   setVal('observacao', item.observacao || '');
+  setVal('motivoDevolucao', item.motivoDevolucao || '');
   if ($('lanAcerto')) $('lanAcerto').value = item.id;
   if ($('lanMotorista')) $('lanMotorista').value = item.motorista || '';
   if ($('lanVeiculo')) $('lanVeiculo').value = item.veiculo || '';
   if ($('acertoFormTitulo')) $('acertoFormTitulo').textContent = `Acerto da viagem ${item.numeroViagem || '-'}`;
   if ($('acertoSelecionadoChip')) $('acertoSelecionadoChip').textContent = `${item.veiculo || '-'} / ${item.motorista || '-'}`;
+  atualizarFreteAcertoForm();
   renderResumoAcertoSelecionado();
 }
 
@@ -4601,7 +4667,37 @@ function selecionarAcertoViagem(id, opcoes = {}) {
 function encerrarAcertoSelecionado() {
   const id = getVal('acertoId');
   if (!id) return notificar('Selecione ou salve uma viagem antes de encerrar.', 'error');
-  setVal('status', 'Finalizado');
+  setVal('status', 'Encerrado');
+  $('formAcertoViagem')?.requestSubmit();
+}
+
+function aprovarAcertoSelecionado() {
+  const id = getVal('acertoId');
+  if (!id) return notificar('Selecione ou salve uma viagem antes de aprovar.', 'error');
+  setVal('status', 'Aprovado');
+  setVal('motivoDevolucao', '');
+  $('formAcertoViagem')?.requestSubmit();
+}
+
+function devolverAcertoSelecionado() {
+  const id = getVal('acertoId');
+  if (!id) return notificar('Selecione ou salve uma viagem antes de devolver.', 'error');
+  const motivo = prompt('Informe o que o motorista precisa corrigir neste acerto:');
+  if (motivo === null) return;
+  const texto = motivo.trim();
+  if (!texto) return notificar('Informe o motivo para devolver o acerto ao motorista.', 'error');
+  const obsAtual = getVal('observacao');
+  const registro = `Correcao solicitada em ${new Date().toLocaleString('pt-BR')}: ${texto}`;
+  setVal('status', 'Devolvido');
+  setVal('motivoDevolucao', texto);
+  setVal('observacao', obsAtual ? `${obsAtual}\n${registro}` : registro);
+  $('formAcertoViagem')?.requestSubmit();
+}
+
+function pagarAcertoSelecionado() {
+  const id = getVal('acertoId');
+  if (!id) return notificar('Selecione ou salve uma viagem antes de marcar pagamento.', 'error');
+  setVal('status', 'Pago');
   $('formAcertoViagem')?.requestSubmit();
 }
 
@@ -4623,14 +4719,15 @@ function filtrosAcertosViagem() {
 
 function passaFiltroAcertoViagem(item, filtros) {
   const status = item.status || 'Pendente';
-  const encerrada = status === 'Finalizado';
+  const encerrada = ['Finalizado', 'Encerrado', 'Pago'].includes(status);
+  const conferida = ['Aprovado', 'Conferido', 'Finalizado', 'Encerrado', 'Pago'].includes(status);
   if (!filtros.todas) {
     if (filtros.encerradas && !encerrada) return false;
     if (filtros.pendentes && encerrada) return false;
   }
   if (!filtros.statusTodas) {
-    if (filtros.conferidas && status !== 'Finalizado') return false;
-    if (filtros.naoConferidas && status === 'Finalizado') return false;
+    if (filtros.conferidas && !conferida) return false;
+    if (filtros.naoConferidas && conferida) return false;
   }
   const data = String(item.dataSaida || '').slice(0, 10);
   if (filtros.inicio && (!data || data < filtros.inicio)) return false;
@@ -4659,7 +4756,7 @@ function renderTabelaAcertosViagem(config) {
   lista.slice(0, MAX_TABLE_ROWS).forEach(item => {
     const km = Math.max(0, asNumber(item.kmFinal) - asNumber(item.kmInicial));
     const media = asNumber(item.mediaLitrosKm);
-    const finalizado = item.status === 'Finalizado';
+    const finalizado = ['Finalizado', 'Encerrado', 'Pago'].includes(item.status);
     const tr = document.createElement('tr');
     tr.className = item.id === selecionado ? 'is-selected-row' : '';
     tr.innerHTML = `
@@ -4695,24 +4792,31 @@ function initFiltrosAcertoViagem() {
 function renderResumoAcertoSelecionado() {
   const acertoId = getVal('acertoId');
   const lancamentos = getData(KEYS.LANCAMENTOS_ACERTO)
-    .filter(item => item.status === 'Aprovado' && item.acertoId === acertoId);
+    .filter(item => statusLancamentoAprovado(item.status) && item.acertoId === acertoId);
   const lancamentosDespesa = lancamentos.filter(item => tiposComValorNoAcerto(item) && !lancamentoEhAdiantamento(item));
   const lancamentosAdiantamento = lancamentos.filter(item => lancamentoEhAdiantamento(item));
   const despesasAprovadas = lancamentosDespesa.reduce((total, item) => total + asNumber(item.valor), 0);
   const adiantamentosAprovados = lancamentosAdiantamento.reduce((total, item) => total + asNumber(item.valor), 0);
   if (acertoId && $('despesas')) setVal('despesas', despesasAprovadas ? String(despesasAprovadas) : '0');
-  if (acertoId && adiantamentosAprovados && $('adiantamento')) setVal('adiantamento', String(adiantamentosAprovados));
-  const receita = asNumber(getVal('receita'));
-  const adiantamento = asNumber(getVal('adiantamento'));
+  if (acertoId && $('adiantamento')) setVal('adiantamento', String(adiantamentosAprovados || 0));
+  const receita = calcularFreteAcerto();
+  if ($('receita')) setVal('receita', receita ? String(receita) : '0');
+  const adiantamento = asNumber(getVal('adiantamento')) || adiantamentosAprovados;
   const despesas = asNumber(getVal('despesas')) || despesasAprovadas;
-  const lucro = receita - despesas - adiantamento;
+  const resultadoOperacional = receita - despesas;
+  const saldoAcerto = despesas - adiantamento;
+  if ($('freteCalculadoPreview')) $('freteCalculadoPreview').textContent = moeda(receita);
   if ($('resumoFretes')) $('resumoFretes').textContent = moeda(receita);
   if ($('resumoAdiantamentos')) $('resumoAdiantamentos').textContent = moeda(adiantamento);
+  if ($('resumoAdiantamentosMini')) $('resumoAdiantamentosMini').textContent = moeda(adiantamento);
   if ($('resumoReceitas')) $('resumoReceitas').textContent = moeda(receita);
   if ($('resumoDespesas')) $('resumoDespesas').textContent = moeda(despesas);
+  if ($('resumoDespesasMini')) $('resumoDespesasMini').textContent = moeda(despesas);
+  if ($('resumoSaldoAcerto')) $('resumoSaldoAcerto').textContent = moeda(saldoAcerto);
+  if ($('resumoSaldoAcertoMini')) $('resumoSaldoAcertoMini').textContent = moeda(saldoAcerto);
   if ($('resumoLucro')) {
-    $('resumoLucro').textContent = moeda(lucro);
-    $('resumoLucro').classList.toggle('danger', lucro < 0);
+    $('resumoLucro').textContent = moeda(resultadoOperacional);
+    $('resumoLucro').classList.toggle('danger', resultadoOperacional < 0);
   }
 
   const categoriasPadrao = ['Combustivel', 'Arla', 'Pecas', 'Oficina', 'Borracharia', 'Lavagem', 'Agenciamento', 'Pedagio', 'Outros'];
@@ -4740,6 +4844,13 @@ function coletarFormularioOperacional(config) {
     item.dataAcerto = item.dataAcerto || new Date().toISOString().split('T')[0];
     item.veiculo = placaCadastrada(item.veiculo) || item.veiculo;
     item.motorista = motoristaCadastrado(item.motorista) || item.motorista;
+    item.ufCarregamento = String(item.ufCarregamento || '').toUpperCase();
+    item.ufDescarregamento = String(item.ufDescarregamento || '').toUpperCase();
+    item.origemDestino = origemDestinoFormularioAcerto() || item.origemDestino;
+    item.receita = calcularFreteAcerto(item);
+    const totais = totaisLancamentosAcerto(item.id);
+    item.despesas = totais.despesas;
+    item.adiantamento = totais.adiantamentos;
   }
   if (config.key === KEYS.MANUTENCOES) {
     item.veiculo = placaCadastrada(item.veiculo) || item.veiculo;
@@ -4838,11 +4949,18 @@ function initModuloOperacional() {
     initFiltrosAcertoViagem();
     if ($('formAcertoViagem')) {
       novoAcertoViagem(false);
-      ['receita', 'despesas', 'adiantamento', 'kmInicial', 'kmFinal'].forEach(id => {
+      ['valorTonelada', 'toneladas', 'receita', 'despesas', 'adiantamento', 'kmInicial', 'kmFinal'].forEach(id => {
         const el = $(id);
         if (el && !el.dataset.summaryBound) {
-          el.addEventListener('input', renderResumoAcertoSelecionado);
+          el.addEventListener('input', id === 'valorTonelada' || id === 'toneladas' ? atualizarFreteAcertoForm : renderResumoAcertoSelecionado);
           el.dataset.summaryBound = '1';
+        }
+      });
+      ['ufCarregamento', 'ufDescarregamento'].forEach(id => {
+        const el = $(id);
+        if (el && !el.dataset.upperBound) {
+          el.addEventListener('input', () => { el.value = el.value.toUpperCase().slice(0, 2); });
+          el.dataset.upperBound = '1';
         }
       });
     }
@@ -4893,7 +5011,8 @@ function rotuloAcertoViagem(acerto) {
   const periodo = [formatarDataDashboard(acerto.dataSaida), formatarDataDashboard(acerto.dataRetorno)]
     .filter(Boolean)
     .join(' a ');
-  return `${periodo || 'Sem periodo'} - ${acerto.motorista || '-'} - ${acerto.veiculo || '-'}${acerto.origemDestino ? ` - ${acerto.origemDestino}` : ''}`;
+  const rota = resumoRotaAcerto(acerto);
+  return `${periodo || 'Sem periodo'} - ${acerto.motorista || '-'} - ${acerto.veiculo || '-'}${rota && rota !== '-' ? ` - ${rota}` : ''}`;
 }
 
 function preencherSelectAcertos(select) {
@@ -4906,12 +5025,48 @@ function preencherSelectAcertos(select) {
   if (acertos.some(acerto => acerto.id === atual)) select.value = atual;
 }
 
+function nomeMotoristaUsuario(usuario = obterUsuarioLogado()) {
+  const nome = usuario?.nome || usuario?.usuario || '';
+  return motoristaCadastrado(nome) || nome;
+}
+
+function acertosDoMotorista(usuario = obterUsuarioLogado(), incluirFechados = false) {
+  const motorista = normalizarChave(nomeMotoristaUsuario(usuario));
+  const statusFechado = new Set(['CANCELADO', 'ENCERRADO', 'PAGO', 'FINALIZADO']);
+  return getData(KEYS.ACERTOS)
+    .filter(acerto => normalizarChave(acerto.motorista) === motorista)
+    .filter(acerto => incluirFechados || !statusFechado.has(normalizarChave(acerto.status)))
+    .sort((a, b) => String(b.dataSaida || b.criadoEm || '').localeCompare(String(a.dataSaida || a.criadoEm || '')));
+}
+
+function preencherSelectDriverAcertos(select, usuario = obterUsuarioLogado()) {
+  if (!select) return;
+  const atual = select.value;
+  const acertos = acertosDoMotorista(usuario);
+  select.innerHTML = '<option value="">Selecione o acerto aberto</option>' + acertos.map(acerto => (
+    `<option value="${escapeHtml(acerto.id)}">${escapeHtml(rotuloAcertoViagem(acerto))}</option>`
+  )).join('');
+  if (acertos.some(acerto => acerto.id === atual)) select.value = atual;
+}
+
+function preencherDriverAcertos(usuario = obterUsuarioLogado()) {
+  preencherSelectDriverAcertos($('driverLanAcerto'), usuario);
+  preencherSelectDriverAcertos($('driverAdAcerto'), usuario);
+}
+
+function aplicarAcertoSelecionadoDriver(selectId, veiculoId) {
+  const acerto = getData(KEYS.ACERTOS).find(item => item.id === getVal(selectId));
+  if (!acerto) return;
+  setVal(veiculoId, acerto.veiculo || '');
+}
+
 function arquivosDoInput(input) {
   if (!input?.files?.length) return [];
   return Array.from(input.files).map(file => ({
     nome: file.name,
     tipo: file.type || 'arquivo',
-    tamanho: file.size || 0
+    tamanho: file.size || 0,
+    previewUrl: URL.createObjectURL(file)
   }));
 }
 
@@ -4922,7 +5077,23 @@ function nomesAnexosLancamento(item) {
 }
 
 function statusLancamentoPendente(status) {
-  return ['Pendente', 'Em analise', 'Aberto'].includes(status || '');
+  return ['PENDENTE', 'EM ANALISE', 'ABERTO', 'EM ANDAMENTO'].includes(normalizarStatusLancamento(status));
+}
+
+function statusLancamentoAprovado(status) {
+  return normalizarStatusLancamento(status) === 'APROVADO';
+}
+
+function statusLancamentoDevolvido(status) {
+  return normalizarStatusLancamento(status) === 'DEVOLVIDO';
+}
+
+function normalizarStatusLancamento(status) {
+  return String(status || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase();
 }
 
 function lancamentoEhAdiantamento(item) {
@@ -4939,15 +5110,17 @@ function recalcularDespesasAprovadasAcertos() {
   const acertos = getData(KEYS.ACERTOS);
   if (!acertos.length) return;
   const totaisPorAcerto = lancamentos.reduce((acc, item) => {
-    if (item.status !== 'Aprovado' || !item.acertoId || !tiposComValorNoAcerto(item)) return acc;
+    if (!statusLancamentoAprovado(item.status) || !item.acertoId || !tiposComValorNoAcerto(item)) return acc;
     const campo = lancamentoEhAdiantamento(item) ? 'adiantamentos' : 'despesas';
     acc[campo][item.acertoId] = (acc[campo][item.acertoId] || 0) + asNumber(item.valor);
     return acc;
   }, { despesas: {}, adiantamentos: {} });
   const atualizados = acertos.map(acerto => ({
     ...acerto,
+    origemDestino: acerto.origemDestino && acerto.origemDestino !== '-' ? acerto.origemDestino : (resumoRotaAcerto(acerto) === '-' ? '' : resumoRotaAcerto(acerto)),
+    receita: calcularFreteAcerto(acerto),
     despesas: totaisPorAcerto.despesas[acerto.id] || 0,
-    adiantamento: totaisPorAcerto.adiantamentos[acerto.id] || asNumber(acerto.adiantamento)
+    adiantamento: totaisPorAcerto.adiantamentos[acerto.id] || 0
   }));
   saveData(KEYS.ACERTOS, atualizados);
 }
@@ -4961,19 +5134,26 @@ function criarLancamentoAcerto(origem, usuario = null) {
   const motoristaUsuario = usuario?.nome || usuario?.usuario || '';
   if (origem === 'motorista') {
     sincronizarTipoLancamentoMotorista();
+    const acertoId = getVal('driverLanAcerto');
+    const acerto = getData(KEYS.ACERTOS).find(item => item.id === acertoId);
+    const correcaoDe = getVal('driverLanCorrecaoDe');
+    const original = correcaoDe ? getData(KEYS.LANCAMENTOS_ACERTO).find(item => item.id === correcaoDe) : null;
     return {
       id: gerarId(),
       origem,
-      acertoId: '',
+      acertoId,
+      acertoLabel: acerto ? rotuloAcertoViagem(acerto) : '',
       tipo: getVal('driverLanTipo'),
       data: getVal('driverLanData'),
       motorista: motoristaCadastrado(motoristaUsuario) || motoristaUsuario,
-      veiculo: placaCadastrada(getVal('driverLanVeiculo')) || getVal('driverLanVeiculo'),
+      veiculo: acerto?.veiculo || placaCadastrada(getVal('driverLanVeiculo')) || getVal('driverLanVeiculo'),
       categoria: getVal('driverLanCategoria'),
       valor: asNumber(getVal('driverLanValor')),
       documento: getVal('driverLanDocumento'),
       descricao: getVal('driverLanDescricao'),
       anexos: arquivosDoInput($('driverLanAnexos')),
+      correcaoDe,
+      versao: original ? asNumber(original.versao || 1) + 1 : 1,
       status: 'Pendente',
       criadoEm: new Date().toISOString()
     };
@@ -4982,25 +5162,32 @@ function criarLancamentoAcerto(origem, usuario = null) {
   if (origem === 'motorista-adiantamento') {
     const categoria = getVal('driverAdCategoria');
     const descricao = getVal('driverAdDescricao');
+    const acertoId = getVal('driverAdAcerto');
+    const acerto = getData(KEYS.ACERTOS).find(item => item.id === acertoId);
+    const correcaoDe = getVal('driverAdCorrecaoDe');
+    const original = correcaoDe ? getData(KEYS.LANCAMENTOS_ACERTO).find(item => item.id === correcaoDe) : null;
     return {
       id: gerarId(),
       origem,
-      acertoId: '',
+      acertoId,
+      acertoLabel: acerto ? rotuloAcertoViagem(acerto) : '',
       tipo: 'Solicitacao',
       data: getVal('driverAdData'),
       motorista: motoristaCadastrado(motoristaUsuario) || motoristaUsuario,
-      veiculo: placaCadastrada(getVal('driverAdVeiculo')) || getVal('driverAdVeiculo'),
+      veiculo: acerto?.veiculo || placaCadastrada(getVal('driverAdVeiculo')) || getVal('driverAdVeiculo'),
       categoria,
       valor: asNumber(getVal('driverAdValor')),
       documento: '',
       descricao: descricao || categoria,
       anexos: arquivosDoInput($('driverAdAnexos')),
+      correcaoDe,
+      versao: original ? asNumber(original.versao || 1) + 1 : 1,
       status: 'Pendente',
       criadoEm: new Date().toISOString()
     };
   }
 
-  const acertoId = getVal('lanAcerto');
+  const acertoId = getVal('lanAcerto') || getVal('acertoId');
   const acerto = getData(KEYS.ACERTOS).find(item => item.id === acertoId);
   return {
     id: gerarId(),
@@ -5023,6 +5210,7 @@ function criarLancamentoAcerto(origem, usuario = null) {
 
 function validarLancamentoAcerto(item) {
   if (!item.tipo || !item.data || !item.motorista) return 'Informe tipo, data e motorista.';
+  if (String(item.origem || '').startsWith('motorista') && !item.acertoId) return 'Selecione o acerto da viagem antes de enviar.';
   if (String(item.origem || '').startsWith('motorista') && !item.veiculo) return 'Selecione o veiculo.';
   if (item.veiculo && !placaExisteCadastro(item.veiculo)) {
     const campoVeiculo = item.origem === 'motorista-adiantamento'
@@ -5043,6 +5231,17 @@ function validarLancamentoAcerto(item) {
 
 function salvarLancamentoAcerto(item) {
   const lista = getData(KEYS.LANCAMENTOS_ACERTO);
+  if (item.correcaoDe) {
+    const originalIdx = lista.findIndex(registro => registro.id === item.correcaoDe);
+    if (originalIdx >= 0) {
+      lista[originalIdx] = {
+        ...lista[originalIdx],
+        status: 'Substituido',
+        corrigidoPor: item.id,
+        atualizadoEm: new Date().toISOString()
+      };
+    }
+  }
   lista.push(item);
   saveData(KEYS.LANCAMENTOS_ACERTO, lista);
   recalcularDespesasAprovadasAcertos();
@@ -5052,15 +5251,277 @@ function salvarLancamentoAcerto(item) {
 function limparFormularioLancamentoAcerto(form) {
   if (form) form.reset();
   if ($('lanData')) $('lanData').value = new Date().toISOString().split('T')[0];
+  if ($('lanAcerto')) $('lanAcerto').value = getVal('acertoId');
   if ($('driverLanData')) $('driverLanData').value = new Date().toISOString().split('T')[0];
   if ($('driverAdData')) $('driverAdData').value = new Date().toISOString().split('T')[0];
+  setVal('driverLanCorrecaoDe', '');
+  setVal('driverAdCorrecaoDe', '');
   sincronizarTipoLancamentoMotorista();
   preencherCombosOperacionais();
+  preencherDriverAcertos();
+}
+
+function garantirGavetaAcerto() {
+  let overlay = document.querySelector('.settlement-drawer-overlay');
+  if (overlay) return overlay;
+  overlay = document.createElement('div');
+  overlay.className = 'settlement-drawer-overlay';
+  overlay.innerHTML = `
+    <div class="settlement-drawer-backdrop" onclick="fecharGavetaAcerto()"></div>
+    <aside class="settlement-drawer" role="dialog" aria-modal="true" aria-labelledby="settlementDrawerTitle">
+      <header class="settlement-drawer-header">
+        <div>${iconeLucide('receipt', '')}<strong id="settlementDrawerTitle">Lancamento</strong></div>
+        <button type="button" class="filter-drawer-close" onclick="fecharGavetaAcerto()" aria-label="Fechar">${iconeLucide('x', 'X')}</button>
+      </header>
+      <div class="settlement-drawer-body" id="settlementDrawerBody"></div>
+    </aside>
+  `;
+  document.body.appendChild(overlay);
+  ativarIconesInterface();
+  return overlay;
+}
+
+function fecharGavetaAcerto() {
+  recolherFormularioLancamentoAcerto();
+  document.querySelector('.settlement-drawer-overlay')?.classList.remove('is-open');
+  document.body.classList.remove('settlement-drawer-open');
+}
+
+function recolherFormularioLancamentoAcerto() {
+  const form = $('formLancamentoAcerto');
+  const source = document.querySelector('.settlement-drawer-source');
+  if (form && source && form.parentElement !== source) source.appendChild(form);
+}
+
+function prepararLancamentoPorTipo(tipo) {
+  const acerto = acertoSelecionadoAtual();
+  if ($('lanAcerto')) $('lanAcerto').value = acerto?.id || '';
+  if (acerto) {
+    setVal('lanMotorista', acerto.motorista || '');
+    setVal('lanVeiculo', acerto.veiculo || '');
+  }
+  if ($('lanData') && !getVal('lanData')) $('lanData').value = new Date().toISOString().split('T')[0];
+
+  const tipoNormalizado = String(tipo || 'Despesa');
+  if (tipoNormalizado === 'Adiantamento') {
+    setVal('lanTipo', 'Solicitacao');
+    if ($('lanCategoria')) {
+      $('lanCategoria').innerHTML = `
+        <option>ADIANTAMENTO PARA ABASTECIMENTO</option>
+        <option>ADIANTAMENTO PARA USO PROPRIO</option>
+        <option>ADIANTAMENTO PARA MANUTENCAO EMERGENCIAL</option>
+        <option>OUTRO ADIANTAMENTO</option>
+      `;
+    }
+    setVal('lanDescricao', 'Solicitacao de adiantamento de viagem');
+  } else {
+    setVal('lanTipo', tipoNormalizado === 'Solicitacao' ? 'Solicitacao' : 'Despesa');
+    if ($('lanCategoria')) {
+      $('lanCategoria').innerHTML = `
+        <option>Combustivel</option><option>Arla</option><option>Pedagio</option><option>Alimentacao</option>
+        <option>Manutencao</option><option>Borracharia</option><option>Lavagem</option><option>Documento</option><option>Outros</option>
+      `;
+    }
+  }
+}
+
+function abrirGavetaLancamentoAcerto(tipo = 'Despesa') {
+  if (!getVal('acertoId')) {
+    notificar('Salve ou abra um acerto antes de lancar despesas ou solicitacoes.', 'error');
+    return;
+  }
+  recolherFormularioLancamentoAcerto();
+  const form = $('formLancamentoAcerto');
+  if (!form) return;
+  const overlay = garantirGavetaAcerto();
+  const body = $('settlementDrawerBody');
+  const title = $('settlementDrawerTitle');
+  prepararLancamentoPorTipo(tipo);
+  if (title) title.textContent = tipo === 'Adiantamento' ? 'Solicitar adiantamento' : `Novo ${String(tipo).toLowerCase()}`;
+  body.innerHTML = `
+    <div class="settlement-drawer-intro">
+      <span>${escapeHtml(rotuloAcertoViagem(acertoSelecionadoAtual()))}</span>
+      <strong>${tipo === 'Adiantamento' ? 'Adiantamento entra no saldo do acerto apos aprovacao.' : 'O lancamento fica pendente ate a conferencia do escritorio.'}</strong>
+    </div>
+  `;
+  body.appendChild(form);
+  overlay.classList.add('is-open');
+  document.body.classList.add('settlement-drawer-open');
+  ativarIconesInterface();
+  setTimeout(() => $('lanValor')?.focus(), 80);
+}
+
+function documentosDoAcerto(acertoId = getVal('acertoId')) {
+  if (!acertoId) return [];
+  return getData(KEYS.LANCAMENTOS_ACERTO)
+    .filter(item => item.acertoId === acertoId && Array.isArray(item.anexos) && item.anexos.length)
+    .flatMap(item => item.anexos.map((anexo, index) => ({ item, anexo, index })));
+}
+
+function abrirDocumentoLancamento(id, index) {
+  const item = getData(KEYS.LANCAMENTOS_ACERTO).find(registro => registro.id === id);
+  const anexo = item?.anexos?.[Number(index)];
+  if (anexo?.previewUrl) {
+    window.open(anexo.previewUrl, '_blank', 'noopener');
+    return;
+  }
+  notificar('Este documento esta registrado como metadado. O upload definitivo entra na fase de storage.', 'info');
+}
+
+function renderDocumentosAcerto() {
+  const box = $('documentosAcertoList');
+  if (!box) return;
+  const docs = documentosDoAcerto();
+  if (!docs.length) {
+    box.innerHTML = '<div class="ops-empty">Nenhum comprovante vinculado a este acerto.</div>';
+    return;
+  }
+  box.innerHTML = docs.map(({ item, anexo, index }) => `
+    <article class="settlement-document-item">
+      <div>
+        <strong>${escapeHtml(anexo.nome || 'Documento')}</strong>
+        <span>${escapeHtml(tipoLancamentoLabel(item))} - ${escapeHtml(item.categoria || '-')} - ${moeda(item.valor)}</span>
+      </div>
+      <button type="button" class="btn-mini" onclick="abrirDocumentoLancamento('${escapeHtml(item.id)}','${index}')">Visualizar</button>
+    </article>
+  `).join('');
+}
+
+function abrirGavetaDocumentosAcerto() {
+  if (!getVal('acertoId')) {
+    notificar('Abra um acerto para consultar documentos.', 'error');
+    return;
+  }
+  recolherFormularioLancamentoAcerto();
+  const overlay = garantirGavetaAcerto();
+  const body = $('settlementDrawerBody');
+  const title = $('settlementDrawerTitle');
+  if (title) title.textContent = 'Documentos do acerto';
+  const docs = documentosDoAcerto();
+  body.innerHTML = `
+    <div class="settlement-drawer-intro">
+      <span>${escapeHtml(rotuloAcertoViagem(acertoSelecionadoAtual()))}</span>
+      <strong>${docs.length ? `${docs.length} comprovante(s) anexado(s).` : 'Nenhum comprovante anexado ainda.'}</strong>
+    </div>
+    <div class="settlement-documents-list">
+      ${docs.length ? docs.map(({ item, anexo, index }) => `
+        <article class="settlement-document-item">
+          <div>
+            <strong>${escapeHtml(anexo.nome || 'Documento')}</strong>
+            <span>${escapeHtml(tipoLancamentoLabel(item))} - ${escapeHtml(item.categoria || '-')} - ${moeda(item.valor)}</span>
+          </div>
+          <button type="button" class="btn-mini" onclick="abrirDocumentoLancamento('${escapeHtml(item.id)}','${index}')">Visualizar</button>
+        </article>
+      `).join('') : '<div class="ops-empty">O motorista ainda nao anexou comprovantes neste acerto.</div>'}
+    </div>
+  `;
+  overlay.classList.add('is-open');
+  document.body.classList.add('settlement-drawer-open');
+}
+
+function dataHoraLancamento(valor) {
+  if (!valor) return '-';
+  const data = new Date(valor);
+  return Number.isNaN(data.getTime()) ? '-' : data.toLocaleString('pt-BR');
+}
+
+function detalheLinhaLancamento(label, valor) {
+  return `<div class="settlement-detail-line"><span>${escapeHtml(label)}</span><strong>${escapeHtml(valor || '-')}</strong></div>`;
+}
+
+function abrirDetalheLancamentoAcerto(id) {
+  const item = getData(KEYS.LANCAMENTOS_ACERTO).find(registro => registro.id === id);
+  if (!item) {
+    notificar('Lancamento nao encontrado.', 'error');
+    return;
+  }
+
+  recolherFormularioLancamentoAcerto();
+  const overlay = garantirGavetaAcerto();
+  const body = $('settlementDrawerBody');
+  const title = $('settlementDrawerTitle');
+  const pendente = statusLancamentoPendente(item.status);
+  const anexos = Array.isArray(item.anexos) ? item.anexos : [];
+  const acerto = item.acertoId
+    ? getData(KEYS.ACERTOS).find(registro => registro.id === item.acertoId)
+    : null;
+
+  if (title) title.textContent = `Lancamento ${item.status || 'pendente'}`;
+  body.innerHTML = `
+    <div class="settlement-drawer-intro settlement-launch-intro">
+      <span>${escapeHtml(tipoLancamentoLabel(item))} - ${escapeHtml(item.categoria || 'Sem categoria')}</span>
+      <strong>${moeda(item.valor)} <small><span class="badge ${badgeStatusOperacional(item.status)}">${escapeHtml(item.status || '-')}</span></small></strong>
+    </div>
+
+    <section class="settlement-detail-card">
+      <h3>Dados do lancamento</h3>
+      <div class="settlement-detail-lines">
+        ${detalheLinhaLancamento('Data', formatarDataDashboard(item.data))}
+        ${detalheLinhaLancamento('Motorista', item.motorista)}
+        ${detalheLinhaLancamento('Veiculo', item.veiculo)}
+        ${detalheLinhaLancamento('Tipo', tipoLancamentoLabel(item))}
+        ${detalheLinhaLancamento('Categoria', item.categoria)}
+        ${detalheLinhaLancamento('Documento', item.documento)}
+        ${detalheLinhaLancamento('Origem', item.origem === 'operacional' ? 'Escritorio' : 'Motorista')}
+        ${detalheLinhaLancamento('Acerto / viagem', item.acertoLabel || (acerto ? rotuloAcertoViagem(acerto) : 'Sem vinculo'))}
+      </div>
+    </section>
+
+    <section class="settlement-detail-card">
+      <h3>Descricao e historico</h3>
+      <p class="settlement-detail-description">${escapeHtml(item.descricao || 'Sem descricao informada.')}</p>
+      <div class="settlement-detail-lines">
+        ${detalheLinhaLancamento('Criado em', dataHoraLancamento(item.criadoEm))}
+        ${detalheLinhaLancamento('Atualizado em', dataHoraLancamento(item.atualizadoEm))}
+        ${item.aprovadoEm ? detalheLinhaLancamento('Aprovado em', dataHoraLancamento(item.aprovadoEm)) : ''}
+        ${item.devolvidoEm ? detalheLinhaLancamento('Devolvido em', dataHoraLancamento(item.devolvidoEm)) : ''}
+        ${item.canceladoEm ? detalheLinhaLancamento('Cancelado em', dataHoraLancamento(item.canceladoEm)) : ''}
+        ${item.motivoDevolucao ? detalheLinhaLancamento('Motivo da correcao', item.motivoDevolucao) : ''}
+        ${item.motivoCancelamento ? detalheLinhaLancamento('Motivo do cancelamento', item.motivoCancelamento) : ''}
+      </div>
+    </section>
+
+    <section class="settlement-detail-card">
+      <h3>Anexos</h3>
+      <div class="settlement-documents-list">
+        ${anexos.length ? anexos.map((anexo, index) => `
+          <article class="settlement-document-item">
+            <div>
+              <strong>${escapeHtml(anexo.nome || anexo || 'Documento')}</strong>
+              <span>${escapeHtml(anexo.tipo || 'arquivo')}</span>
+            </div>
+            <button type="button" class="btn-mini" onclick="abrirDocumentoLancamento('${escapeHtml(item.id)}','${index}')">Visualizar</button>
+          </article>
+        `).join('') : '<div class="ops-empty">Nenhum anexo neste lancamento.</div>'}
+      </div>
+    </section>
+
+    <div class="settlement-detail-actions">
+      <button type="button" class="btn btn-secondary" onclick="fecharGavetaAcerto()">Fechar</button>
+      ${pendente ? `
+        <button type="button" class="btn btn-primary" onclick="alterarStatusLancamentoAcerto('${escapeHtml(item.id)}','Aprovado'); abrirDetalheLancamentoAcerto('${escapeHtml(item.id)}')">Aprovar</button>
+        <button type="button" class="btn btn-warning" onclick="alterarStatusLancamentoAcerto('${escapeHtml(item.id)}','Devolvido'); abrirDetalheLancamentoAcerto('${escapeHtml(item.id)}')">Voltar correcao</button>
+        <button type="button" class="btn btn-secondary" onclick="alterarStatusLancamentoAcerto('${escapeHtml(item.id)}','Cancelado'); abrirDetalheLancamentoAcerto('${escapeHtml(item.id)}')">Cancelar</button>
+      ` : ''}
+    </div>
+  `;
+
+  overlay.classList.add('is-open');
+  document.body.classList.add('settlement-drawer-open');
+  ativarIconesInterface();
 }
 
 function acoesLancamentoHtml(item) {
   const id = escapeHtml(item.id);
+  const status = normalizarStatusLancamento(item.status);
+  const abrir = `<button type="button" class="btn-mini" onclick="abrirDetalheLancamentoAcerto('${id}')">Abrir</button>`;
+  if (status === 'APROVADO') return `<div class="decision-actions is-readonly">${abrir}<span class="decision-note success">Aprovado</span></div>`;
+  if (status === 'DEVOLVIDO') return `<div class="decision-actions is-readonly">${abrir}<span class="decision-note warning">Em correcao</span></div>`;
+  if (status === 'SUBSTITUIDO') return `<div class="decision-actions is-readonly">${abrir}<span class="decision-note">Substituido</span></div>`;
+  if (status === 'CANCELADO') return `<div class="decision-actions is-readonly">${abrir}<span class="decision-note danger">Cancelado</span></div>`;
+  if (!statusLancamentoPendente(item.status)) return `<div class="decision-actions is-readonly">${abrir}<span class="decision-note">${escapeHtml(item.status || 'Registrado')}</span></div>`;
   return `<div class="decision-actions">
+    ${abrir}
     <button type="button" class="btn-mini success" onclick="alterarStatusLancamentoAcerto('${id}','Aprovado')">Aprovar</button>
     <button type="button" class="btn-mini warning" onclick="alterarStatusLancamentoAcerto('${id}','Devolvido')">Voltar</button>
     <button type="button" class="btn-mini danger" onclick="alterarStatusLancamentoAcerto('${id}','Cancelado')">Cancelar</button>
@@ -5077,6 +5538,9 @@ function descricaoLancamento(item) {
   if (item.categoria) partes.push(item.categoria);
   if (item.descricao && normalizarChave(item.descricao) !== normalizarChave(item.categoria)) partes.push(item.descricao);
   if (item.documento) partes.push(`Doc: ${item.documento}`);
+  if (item.motivoDevolucao) partes.push(`Correcao solicitada: ${item.motivoDevolucao}`);
+  if (item.motivoCancelamento) partes.push(`Cancelamento: ${item.motivoCancelamento}`);
+  if (item.correcaoDe) partes.push('Reenvio corrigido pelo motorista');
   return partes.join(' | ') || '-';
 }
 
@@ -5098,6 +5562,8 @@ function linhaBaseLancamento(item) {
 
 function renderTabelaLancamentosAcerto() {
   const tbody = $('tabelaLancamentosAcerto');
+  renderTabelasDetalheAcerto();
+  renderDocumentosAcerto();
   if (!tbody) return;
   const acertoAtual = getVal('acertoId');
   const lista = getData(KEYS.LANCAMENTOS_ACERTO)
@@ -5116,6 +5582,48 @@ function renderTabelaLancamentosAcerto() {
       <td>${l.anexos}</td><td>${l.status}</td><td>${l.acoes}</td>
     </tr>`;
   }).join('');
+}
+
+function renderTabelasDetalheAcerto() {
+  const despesasBody = $('tabelaDespesasAcerto');
+  const solicitacoesBody = $('tabelaSolicitacoesAcerto');
+  if (!despesasBody && !solicitacoesBody) return;
+
+  const acertoAtual = getVal('acertoId');
+  const lista = getData(KEYS.LANCAMENTOS_ACERTO)
+    .filter(item => acertoAtual && item.acertoId === acertoAtual)
+    .slice()
+    .reverse();
+  const despesas = lista.filter(item => item.tipo !== 'Solicitacao');
+  const solicitacoes = lista.filter(item => item.tipo === 'Solicitacao');
+
+  if (despesasBody) {
+    despesasBody.innerHTML = despesas.length ? despesas.slice(0, MAX_TABLE_ROWS).map(item => {
+      const l = linhaBaseLancamento(item);
+      return `<tr>
+        <td>${escapeHtml(l.data)}</td>
+        <td>${escapeHtml(l.categoria)}</td>
+        <td>${l.valor}</td>
+        <td>${escapeHtml(l.documento)}</td>
+        <td>${l.status}</td>
+        <td>${l.acoes}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="6" class="text-center">Nenhuma despesa vinculada a este acerto.</td></tr>';
+  }
+
+  if (solicitacoesBody) {
+    solicitacoesBody.innerHTML = solicitacoes.length ? solicitacoes.slice(0, MAX_TABLE_ROWS).map(item => {
+      const l = linhaBaseLancamento(item);
+      return `<tr>
+        <td>${escapeHtml(l.data)}</td>
+        <td>${escapeHtml(l.tipo)}</td>
+        <td>${escapeHtml(l.descricao)}</td>
+        <td>${l.valor}</td>
+        <td>${l.status}</td>
+        <td>${l.acoes}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="6" class="text-center">Nenhuma solicitacao vinculada a este acerto.</td></tr>';
+  }
 }
 
 function renderTabelaDespesasLancamentos() {
@@ -5166,7 +5674,7 @@ function renderKpisLancamentosAcerto() {
   const solicitacoes = lista.filter(item => item.tipo === 'Solicitacao');
   const pendentes = lista.filter(item => statusLancamentoPendente(item.status)).length;
   const aprovadosValor = lista
-    .filter(item => item.status === 'Aprovado' && tiposComValorNoAcerto(item))
+    .filter(item => statusLancamentoAprovado(item.status) && tiposComValorNoAcerto(item))
     .reduce((total, item) => total + asNumber(item.valor), 0);
 
   if ($('lancamentoTotal')) $('lancamentoTotal').textContent = lista.length.toLocaleString('pt-BR');
@@ -5174,11 +5682,11 @@ function renderKpisLancamentosAcerto() {
   if ($('lancamentoAprovados')) $('lancamentoAprovados').textContent = moeda(aprovadosValor);
 
   if ($('despesaTotal')) $('despesaTotal').textContent = despesas.length.toLocaleString('pt-BR');
-  if ($('despesaValor')) $('despesaValor').textContent = moeda(despesas.filter(item => item.status === 'Aprovado').reduce((total, item) => total + asNumber(item.valor), 0));
+  if ($('despesaValor')) $('despesaValor').textContent = moeda(despesas.filter(item => statusLancamentoAprovado(item.status)).reduce((total, item) => total + asNumber(item.valor), 0));
   if ($('despesaPendentes')) $('despesaPendentes').textContent = despesas.filter(item => statusLancamentoPendente(item.status)).length.toLocaleString('pt-BR');
 
   if ($('solicitacaoTotal')) $('solicitacaoTotal').textContent = solicitacoes.length.toLocaleString('pt-BR');
-  if ($('solicitacaoPrioridade')) $('solicitacaoPrioridade').textContent = solicitacoes.filter(item => item.status === 'Devolvido').length.toLocaleString('pt-BR');
+  if ($('solicitacaoPrioridade')) $('solicitacaoPrioridade').textContent = solicitacoes.filter(item => statusLancamentoDevolvido(item.status)).length.toLocaleString('pt-BR');
   if ($('solicitacaoPendentes')) $('solicitacaoPendentes').textContent = solicitacoes.filter(item => statusLancamentoPendente(item.status)).length.toLocaleString('pt-BR');
 }
 
@@ -5197,24 +5705,193 @@ function renderDriverLancamentos(usuario) {
   listaEl.innerHTML = lista.slice(0, 12).map(item => {
     const label = tipoLancamentoLabel(item);
     const statusClass = badgeStatusOperacional(item.status);
+    const devolvido = normalizarChave(item.status) === 'DEVOLVIDO';
+    const motivo = item.motivoDevolucao ? `Correcao: ${item.motivoDevolucao}` : '';
     return `
       <article class="driver-history-item">
         <strong>${escapeHtml(label)} - ${moeda(item.valor)}</strong>
         <span>${escapeHtml(formatarDataDashboard(item.data))} | ${escapeHtml(item.categoria || '-')}</span>
-        <small><span class="badge ${statusClass}">${escapeHtml(item.status || '-')}</span> ${escapeHtml(item.descricao || item.documento || '')}</small>
+        ${devolvido ? `<button type="button" class="driver-mini-action warning" onclick="corrigirLancamentoMotorista('${escapeHtml(item.id)}')">Corrigir</button>` : ''}
+        <small><span class="badge ${statusClass}">${escapeHtml(item.status || '-')}</span> ${escapeHtml(motivo || item.descricao || item.documento || '')}</small>
       </article>
     `;
   }).join('');
 }
 
+function renderDriverAcertos(usuario) {
+  const listaEl = $('driverAcertosList');
+  if (!listaEl) return;
+  const lista = acertosDoMotorista(usuario, true).slice(0, 10);
+  if (!lista.length) {
+    listaEl.innerHTML = '<p class="driver-empty">Nenhum acerto aberto ainda.</p>';
+    return;
+  }
+  listaEl.innerHTML = lista.map(acerto => {
+    const statusClass = badgeStatusOperacional(acerto.status);
+    const devolvido = normalizarChave(acerto.status) === 'DEVOLVIDO';
+    return `
+      <article class="driver-history-item">
+        <strong>Viagem ${escapeHtml(acerto.numeroViagem || '-')} - ${escapeHtml(acerto.veiculo || '-')}</strong>
+        <span>${escapeHtml(formatarDataDashboard(acerto.dataSaida))} | ${escapeHtml(resumoRotaAcerto(acerto))}</span>
+        ${devolvido ? `<button type="button" class="driver-mini-action warning" onclick="corrigirAcertoMotorista('${escapeHtml(acerto.id)}')">Corrigir</button>` : ''}
+        <small><span class="badge ${statusClass}">${escapeHtml(acerto.status || '-')}</span> ${escapeHtml(acerto.motivoDevolucao || acerto.observacao || '')}</small>
+      </article>
+    `;
+  }).join('');
+}
+
+function corrigirLancamentoMotorista(id) {
+  const item = getData(KEYS.LANCAMENTOS_ACERTO).find(registro => registro.id === id);
+  if (!item) return notificar('Lancamento nao encontrado.', 'error');
+  const usuario = obterUsuarioLogado();
+  preencherDriverAcertos(usuario);
+
+  if (lancamentoEhAdiantamento(item)) {
+    mostrarSecaoMotorista('adiantamentos');
+    setVal('driverAdCorrecaoDe', item.id);
+    setVal('driverAdAcerto', item.acertoId || '');
+    setVal('driverAdCategoria', item.categoria || 'ADIANTAMENTO PARA ABASTECIMENTO');
+    setVal('driverAdData', dataIsoCurta(item.data) || new Date().toISOString().split('T')[0]);
+    setVal('driverAdVeiculo', item.veiculo || '');
+    setVal('driverAdValor', item.valor || '');
+    setVal('driverAdDescricao', item.descricao || '');
+    $('formDriverAdiantamento')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else {
+    mostrarSecaoMotorista('frota');
+    setVal('driverLanCorrecaoDe', item.id);
+    setVal('driverLanAcerto', item.acertoId || '');
+    setVal('driverLanTipo', item.tipo || 'Despesa');
+    setVal('driverLanData', dataIsoCurta(item.data) || new Date().toISOString().split('T')[0]);
+    setVal('driverLanVeiculo', item.veiculo || '');
+    setVal('driverLanCategoria', item.categoria || 'Outros');
+    setVal('driverLanValor', item.valor || '');
+    setVal('driverLanDocumento', item.documento || '');
+    setVal('driverLanDescricao', item.descricao || '');
+    $('formDriverLancamento')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  notificar('Revise os dados, anexe o comprovante e envie novamente.', 'info');
+}
+
+function criarAcertoMotorista(usuario) {
+  const motorista = motoristaCadastrado(usuario?.nome || usuario?.usuario || '') || usuario?.nome || usuario?.usuario || '';
+  const veiculo = placaCadastrada(getVal('driverAcertoVeiculo')) || getVal('driverAcertoVeiculo');
+  const dataSaida = getVal('driverAcertoDataSaida');
+  const correcaoId = getVal('driverAcertoCorrecaoId');
+  if (!veiculo || !dataSaida) return 'Informe veiculo e data de inicio.';
+  if (veiculo && !placaExisteCadastro(veiculo)) {
+    atualizarEstadoCampoPesquisavel($('driverAcertoVeiculo'));
+    return `A placa ${veiculo} nao existe no cadastro de veiculos.`;
+  }
+
+  const item = {
+    id: correcaoId || gerarId(),
+    origem: 'motorista',
+    numeroViagem: proximoNumeroViagem(),
+    dataSaida,
+    dataRetorno: '',
+    dataAcerto: new Date().toISOString().split('T')[0],
+    motorista,
+    veiculo,
+    localCarregamento: getVal('driverAcertoCarregamento'),
+    ufCarregamento: '',
+    localDescarregamento: getVal('driverAcertoDescarregamento'),
+    ufDescarregamento: '',
+    valorTonelada: getVal('driverAcertoValorTonelada'),
+    toneladas: getVal('driverAcertoToneladas'),
+    kmInicial: '',
+    kmFinal: '',
+    mediaLitrosKm: '',
+    despesas: 0,
+    adiantamento: 0,
+    motivoDevolucao: '',
+    status: 'Em analise',
+    observacao: correcaoId ? 'Correcao reenviada pelo motorista' : 'Aberto pelo motorista',
+    criadoEm: new Date().toISOString()
+  };
+  item.origemDestino = resumoRotaAcerto(item);
+  item.receita = calcularFreteAcerto(item);
+
+  const lista = getData(KEYS.ACERTOS);
+  if (correcaoId) {
+    const idx = lista.findIndex(acerto => acerto.id === correcaoId);
+    if (idx < 0) return 'Acerto original nao encontrado para correcao.';
+    lista[idx] = {
+      ...lista[idx],
+      ...item,
+      id: correcaoId,
+      numeroViagem: lista[idx].numeroViagem || item.numeroViagem,
+      dataRetorno: lista[idx].dataRetorno || item.dataRetorno,
+      kmInicial: lista[idx].kmInicial || item.kmInicial,
+      kmFinal: lista[idx].kmFinal || item.kmFinal,
+      mediaLitrosKm: lista[idx].mediaLitrosKm || item.mediaLitrosKm,
+      despesas: lista[idx].despesas || item.despesas,
+      adiantamento: lista[idx].adiantamento || item.adiantamento,
+      criadoEm: lista[idx].criadoEm || item.criadoEm,
+      atualizadoEm: new Date().toISOString()
+    };
+  } else {
+    lista.push(item);
+  }
+  saveData(KEYS.ACERTOS, lista);
+  return '';
+}
+
+function limparCorrecaoAcertoMotorista() {
+  setVal('driverAcertoCorrecaoId', '');
+  const botao = document.querySelector('#formDriverNovoAcerto .driver-submit');
+  if (botao) botao.textContent = 'Abrir acerto';
+}
+
+function initFormDriverNovoAcerto(usuario) {
+  const form = $('formDriverNovoAcerto');
+  if (!form) return;
+  if ($('driverAcertoDataSaida') && !getVal('driverAcertoDataSaida')) {
+    $('driverAcertoDataSaida').value = new Date().toISOString().split('T')[0];
+  }
+  if (form.dataset.bound) return;
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    const erro = criarAcertoMotorista(usuario);
+    if (erro) return notificar(erro, 'error');
+    form.reset();
+    limparCorrecaoAcertoMotorista();
+    if ($('driverAcertoDataSaida')) $('driverAcertoDataSaida').value = new Date().toISOString().split('T')[0];
+    preencherCombosOperacionais();
+    preencherDriverAcertos(usuario);
+    renderDriverAcertos(usuario);
+    notificar('Acerto enviado para conferencia do escritorio.', 'success');
+  });
+  form.dataset.bound = '1';
+}
+
+function corrigirAcertoMotorista(id) {
+  const acerto = getData(KEYS.ACERTOS).find(item => item.id === id);
+  if (!acerto) return notificar('Acerto nao encontrado.', 'error');
+  mostrarSecaoMotorista('frota');
+  setVal('driverAcertoCorrecaoId', acerto.id);
+  setVal('driverAcertoVeiculo', acerto.veiculo || '');
+  setVal('driverAcertoDataSaida', acerto.dataSaida || '');
+  setVal('driverAcertoCarregamento', acerto.localCarregamento || '');
+  setVal('driverAcertoDescarregamento', acerto.localDescarregamento || '');
+  setVal('driverAcertoValorTonelada', acerto.valorTonelada || '');
+  setVal('driverAcertoToneladas', acerto.toneladas || '');
+  const botao = document.querySelector('#formDriverNovoAcerto .driver-submit');
+  if (botao) botao.textContent = 'Reenviar correcao';
+  $('formDriverNovoAcerto')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function renderFluxoLancamentosAcerto(usuario = null) {
   preencherCombosOperacionais();
+  preencherDriverAcertos(usuario || obterUsuarioLogado());
   recalcularDespesasAprovadasAcertos();
   renderTabelaLancamentosAcerto();
   renderTabelaDespesasLancamentos();
   renderTabelaSolicitacoesLancamentos();
   renderKpisLancamentosAcerto();
-  if (usuario) renderDriverLancamentos(usuario);
+  if (usuario) {
+    renderDriverLancamentos(usuario);
+    renderDriverAcertos(usuario);
+  }
   const config = MODULOS_OPERACIONAIS[document.body.id];
   if (config?.key === KEYS.ACERTOS) renderModuloOperacional(config);
 }
@@ -5223,14 +5900,38 @@ function alterarStatusLancamentoAcerto(id, status) {
   const lista = getData(KEYS.LANCAMENTOS_ACERTO);
   const idx = lista.findIndex(item => item.id === id);
   if (idx < 0) return;
+  const atual = lista[idx];
   const acertoAtual = getVal('acertoId');
-  const acertoParaVincular = status === 'Aprovado' && !lista[idx].acertoId
-    ? (acertoAtual ? acertoSelecionadoAtual() : encontrarAcertoCompativelLancamento(lista[idx]))
+  const acertoParaVincular = status === 'Aprovado' && !atual.acertoId
+    ? (acertoAtual ? acertoSelecionadoAtual() : encontrarAcertoCompativelLancamento(atual))
     : null;
+  if (status === 'Aprovado' && tiposComValorNoAcerto(atual) && !atual.acertoId && !acertoParaVincular) {
+    notificar('Abra ou selecione um acerto compativel antes de aprovar este valor.', 'error');
+    return;
+  }
   const vinculoAcerto = acertoParaVincular
     ? { acertoId: acertoParaVincular.id, acertoLabel: rotuloAcertoViagem(acertoParaVincular) }
     : {};
-  lista[idx] = { ...lista[idx], ...vinculoAcerto, status, atualizadoEm: new Date().toISOString() };
+  const extras = {};
+  if (status === 'Devolvido') {
+    const motivo = prompt('Informe o que o motorista precisa corrigir neste lancamento:');
+    if (motivo === null) return;
+    const texto = motivo.trim();
+    if (!texto) return notificar('Informe o motivo para devolver ao motorista.', 'error');
+    extras.motivoDevolucao = texto;
+    extras.devolvidoEm = new Date().toISOString();
+  }
+  if (status === 'Cancelado') {
+    const motivo = prompt('Motivo do cancelamento (opcional):');
+    if (motivo === null) return;
+    extras.motivoCancelamento = motivo.trim();
+    extras.canceladoEm = new Date().toISOString();
+  }
+  if (status === 'Aprovado') {
+    extras.motivoDevolucao = '';
+    extras.aprovadoEm = new Date().toISOString();
+  }
+  lista[idx] = { ...atual, ...vinculoAcerto, ...extras, status, atualizadoEm: new Date().toISOString() };
   saveData(KEYS.LANCAMENTOS_ACERTO, lista);
   recalcularDespesasAprovadasAcertos();
   const selecionado = getVal('acertoId');
@@ -5264,6 +5965,7 @@ function initFormLancamentoAcerto() {
     if (erro) return notificar(erro, 'error');
     salvarLancamentoAcerto(item);
     limparFormularioLancamentoAcerto(form);
+    fecharGavetaAcerto();
     notificar('Lancamento enviado para analise.', 'success');
   });
   form.dataset.bound = '1';
@@ -5274,6 +5976,10 @@ function initFormDriverLancamento(usuario) {
   if (!form) return;
   if ($('driverLanData') && !getVal('driverLanData')) $('driverLanData').value = new Date().toISOString().split('T')[0];
   sincronizarTipoLancamentoMotorista();
+  if ($('driverLanAcerto') && !$('driverLanAcerto').dataset.bound) {
+    $('driverLanAcerto').addEventListener('change', () => aplicarAcertoSelecionadoDriver('driverLanAcerto', 'driverLanVeiculo'));
+    $('driverLanAcerto').dataset.bound = '1';
+  }
   if (form.dataset.bound) return;
   form.addEventListener('submit', event => {
     event.preventDefault();
@@ -5283,6 +5989,7 @@ function initFormDriverLancamento(usuario) {
     salvarLancamentoAcerto(item);
     limparFormularioLancamentoAcerto(form);
     renderDriverLancamentos(usuario);
+    renderDriverAcertos(usuario);
     mostrarSecaoMotorista('historico');
     notificar('Despesa enviada para o escritorio.', 'success');
   });
@@ -5293,6 +6000,10 @@ function initFormDriverAdiantamento(usuario) {
   const form = $('formDriverAdiantamento');
   if (!form) return;
   if ($('driverAdData') && !getVal('driverAdData')) $('driverAdData').value = new Date().toISOString().split('T')[0];
+  if ($('driverAdAcerto') && !$('driverAdAcerto').dataset.bound) {
+    $('driverAdAcerto').addEventListener('change', () => aplicarAcertoSelecionadoDriver('driverAdAcerto', 'driverAdVeiculo'));
+    $('driverAdAcerto').dataset.bound = '1';
+  }
   if (form.dataset.bound) return;
   form.addEventListener('submit', event => {
     event.preventDefault();
@@ -5302,6 +6013,7 @@ function initFormDriverAdiantamento(usuario) {
     salvarLancamentoAcerto(item);
     limparFormularioLancamentoAcerto(form);
     renderDriverLancamentos(usuario);
+    renderDriverAcertos(usuario);
     mostrarSecaoMotorista('historico');
     notificar('Solicitacao de adiantamento enviada.', 'success');
   });
