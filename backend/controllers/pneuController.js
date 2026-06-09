@@ -1,16 +1,51 @@
 const db = require('../config/db');
+const { executarSchemaSync } = require('../utils/schemaGuard');
+const { erroInterno } = require('../utils/httpResponse');
 
 let compraColumnsReady = false;
+let compraColumns = {
+  FornecedorCompra: false,
+  NotaFiscalCompra: false,
+  ObsCompra: false
+};
 
 async function ensureCompraColumns() {
   if (compraColumnsReady) return;
-  await db.query(`
+  await executarSchemaSync('Pneus_Frota.colunas_compra', () => db.query(`
     ALTER TABLE "Pneus_Frota"
       ADD COLUMN IF NOT EXISTS "FornecedorCompra" TEXT,
       ADD COLUMN IF NOT EXISTS "NotaFiscalCompra" TEXT,
       ADD COLUMN IF NOT EXISTS "ObsCompra" TEXT
-  `);
+  `));
+
+  const { rows } = await db.query(`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = CURRENT_SCHEMA()
+      AND table_name = 'Pneus_Frota'
+      AND column_name = ANY($1)
+  `, [Object.keys(compraColumns)]);
+
+  const existentes = new Set(rows.map(row => row.column_name));
+  compraColumns = {
+    FornecedorCompra: existentes.has('FornecedorCompra'),
+    NotaFiscalCompra: existentes.has('NotaFiscalCompra'),
+    ObsCompra: existentes.has('ObsCompra')
+  };
   compraColumnsReady = true;
+}
+
+function compraSelect(columnName, alias) {
+  return compraColumns[columnName]
+    ? `COALESCE(p."${columnName}", '') AS "${alias}"`
+    : `'' AS "${alias}"`;
+}
+
+function appendCompraColumn(columns, values, params, columnName, value) {
+  if (!compraColumns[columnName]) return;
+  columns.push(`"${columnName}"`);
+  params.push(value);
+  values.push(`$${params.length}`);
 }
 
 class PneuController {
@@ -94,9 +129,9 @@ class PneuController {
           p."KmCompra" AS "kmCompra",
           p."Dot" AS dot,
           p."Serie" AS serie,
-          COALESCE(p."FornecedorCompra", '') AS "fornecedorCompra",
-          COALESCE(p."NotaFiscalCompra", '') AS "notaFiscalCompra",
-          COALESCE(p."ObsCompra", '') AS "observacaoCompra",
+          ${compraSelect('FornecedorCompra', 'fornecedorCompra')},
+          ${compraSelect('NotaFiscalCompra', 'notaFiscalCompra')},
+          ${compraSelect('ObsCompra', 'observacaoCompra')},
           p."Profundidademm" AS "profundidadeAtual",
           CASE
             WHEN u."TipoMov" = '5' THEN 'Baixado'
@@ -133,7 +168,7 @@ class PneuController {
       res.json(rows);
     } catch (error) {
       console.error('Erro ao buscar pneus:', error);
-      res.status(500).json({ error: 'Erro interno ao buscar pneus', details: error.message });
+      return erroInterno(req, res, 'Erro interno ao buscar pneus.', error);
     }
   }
 
@@ -182,15 +217,13 @@ class PneuController {
         return res.status(409).json({ error: 'Ja existe um pneu cadastrado com esse codigo ou numero de fogo.' });
       }
 
-      const { rows } = await db.query(`
-        INSERT INTO "Pneus_Frota" (
-          "CodPneu", "NPneu", "Marca", "TipoPneu", "KmPercorrido", "VeiculoAtual", "LocalAtual",
-          "Status", "QtdeRecapagem", "DataCompra", "Largura", "Modelo", "Dot", "Serie",
-          "Profundidademm", "VlCompra", "KmCompra", "FornecedorCompra", "NotaFiscalCompra", "ObsCompra"
-        )
-        VALUES ($1, $2, $3, $4, 0, '0', '0', 'Estoque', '0', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-        RETURNING *
-      `, [
+      const columns = [
+        '"CodPneu"', '"NPneu"', '"Marca"', '"TipoPneu"', '"KmPercorrido"', '"VeiculoAtual"', '"LocalAtual"',
+        '"Status"', '"QtdeRecapagem"', '"DataCompra"', '"Largura"', '"Modelo"', '"Dot"', '"Serie"',
+        '"Profundidademm"', '"VlCompra"', '"KmCompra"'
+      ];
+      const values = ['$1', '$2', '$3', '$4', '0', "'0'", "'0'", "'Estoque'", "'0'", '$5', '$6', '$7', '$8', '$9', '$10', '$11', '$12'];
+      const params = [
         codPneu,
         numPneu,
         marca,
@@ -202,11 +235,18 @@ class PneuController {
         pneu.serie || '',
         profundidade,
         valorCompra,
-        kmCompra,
-        fornecedorCompra,
-        notaFiscalCompra,
-        observacaoCompra
-      ]);
+        kmCompra
+      ];
+
+      appendCompraColumn(columns, values, params, 'FornecedorCompra', fornecedorCompra);
+      appendCompraColumn(columns, values, params, 'NotaFiscalCompra', notaFiscalCompra);
+      appendCompraColumn(columns, values, params, 'ObsCompra', observacaoCompra);
+
+      const { rows } = await db.query(`
+        INSERT INTO "Pneus_Frota" (${columns.join(', ')})
+        VALUES (${values.join(', ')})
+        RETURNING *
+      `, params);
 
       const row = rows[0];
       res.status(201).json({
@@ -238,7 +278,7 @@ class PneuController {
       if (error.code === '23505') {
         return res.status(409).json({ error: 'Ja existe um pneu com esse codigo.' });
       }
-      res.status(500).json({ error: 'Erro interno ao criar pneu', details: error.message });
+      return erroInterno(req, res, 'Erro interno ao criar pneu.', error);
     }
   }
 }

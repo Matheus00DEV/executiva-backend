@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { erroInterno } = require('../utils/httpResponse');
 
 function normalizarTexto(valor) {
   return String(valor || '').trim();
@@ -69,7 +70,7 @@ class VeiculoController {
       res.json(rows.map(mapVeiculo));
     } catch (error) {
       console.error('Erro ao buscar veiculos:', error);
-      res.status(500).json({ error: 'Erro interno ao buscar veiculos', details: error.message });
+      return erroInterno(req, res, 'Erro interno ao buscar veiculos.', error);
     }
   }
 
@@ -121,7 +122,7 @@ class VeiculoController {
       if (error.code === '23505') {
         return res.status(409).json({ error: 'Ja existe um veiculo com este codigo.' });
       }
-      res.status(500).json({ error: 'Erro interno ao criar veiculo', details: error.message });
+      return erroInterno(req, res, 'Erro interno ao criar veiculo.', error);
     }
   }
 
@@ -218,7 +219,7 @@ class VeiculoController {
       }
     } catch (error) {
       console.error('Erro ao atualizar veiculo:', error);
-      res.status(500).json({ error: 'Erro interno ao atualizar veiculo', details: error.message });
+      return erroInterno(req, res, 'Erro interno ao atualizar veiculo.', error);
     }
   }
 
@@ -253,7 +254,7 @@ class VeiculoController {
       res.json({ message: 'Veiculo excluido com sucesso.' });
     } catch (error) {
       console.error('Erro ao excluir veiculo:', error);
-      res.status(500).json({ error: 'Erro interno ao excluir veiculo', details: error.message });
+      return erroInterno(req, res, 'Erro interno ao excluir veiculo.', error);
     }
   }
 }

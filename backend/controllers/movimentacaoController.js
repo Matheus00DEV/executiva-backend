@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { erroInterno } = require('../utils/httpResponse');
 
 function gerarIdMov() {
   return `MOV-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -68,7 +69,7 @@ class MovimentacaoController {
       res.json(rows);
     } catch (error) {
       console.error('Erro ao buscar movimentacoes:', error);
-      res.status(500).json({ error: 'Erro interno ao buscar movimentacoes', details: error.message });
+      return erroInterno(req, res, 'Erro interno ao buscar movimentacoes.', error);
     }
   }
 
@@ -236,7 +237,7 @@ class MovimentacaoController {
       });
     } catch (error) {
       console.error('Erro ao criar movimentacao:', error);
-      res.status(500).json({ error: 'Erro interno ao criar movimentacao', details: error.message });
+      return erroInterno(req, res, 'Erro interno ao criar movimentacao.', error);
     }
   }
 
@@ -418,7 +419,7 @@ class MovimentacaoController {
       });
     } catch (error) {
       console.error('Erro ao atualizar movimentacao:', error);
-      res.status(500).json({ error: 'Erro interno ao atualizar movimentacao', details: error.message });
+      return erroInterno(req, res, 'Erro interno ao atualizar movimentacao.', error);
     }
   }
 
@@ -442,7 +443,7 @@ class MovimentacaoController {
       res.json({ id: rows[0].id, removido: true });
     } catch (error) {
       console.error('Erro ao excluir movimentacao:', error);
-      res.status(500).json({ error: 'Erro interno ao excluir movimentacao', details: error.message });
+      return erroInterno(req, res, 'Erro interno ao excluir movimentacao.', error);
     }
   }
 }
