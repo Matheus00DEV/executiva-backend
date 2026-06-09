@@ -1,4 +1,5 @@
 const motoristaService = require('../services/motoristaService');
+const { erroInterno } = require('../utils/httpResponse');
 
 class MotoristaController {
   async getMotoristas(req, res) {
@@ -7,7 +8,7 @@ class MotoristaController {
       res.json(motoristas);
     } catch (error) {
       console.error('Erro ao buscar motoristas:', error);
-      res.status(500).json({ error: 'Erro interno ao buscar motoristas', details: error.message });
+      return erroInterno(req, res, 'Erro interno ao buscar motoristas.', error);
     }
   }
 
@@ -17,7 +18,7 @@ class MotoristaController {
       res.status(201).json(motorista);
     } catch (error) {
       console.error('Erro ao criar motorista:', error);
-      res.status(500).json({ error: 'Erro interno ao criar motorista', details: error.message });
+      return erroInterno(req, res, 'Erro interno ao criar motorista.', error);
     }
   }
 
@@ -25,21 +26,23 @@ class MotoristaController {
     try {
       const { cpf } = req.params;
       const motorista = await motoristaService.atualizar(cpf, req.body);
+      if (!motorista) return res.status(404).json({ error: 'Motorista nao encontrado.', requestId: req.id });
       res.json(motorista);
     } catch (error) {
       console.error('Erro ao atualizar motorista:', error);
-      res.status(500).json({ error: 'Erro interno ao atualizar motorista', details: error.message });
+      return erroInterno(req, res, 'Erro interno ao atualizar motorista.', error);
     }
   }
 
   async excluirMotorista(req, res) {
     try {
       const { cpf } = req.params;
-      await motoristaService.excluir(cpf);
+      const excluido = await motoristaService.excluir(cpf);
+      if (!excluido) return res.status(404).json({ error: 'Motorista nao encontrado.', requestId: req.id });
       res.json({ message: 'Motorista excluído com sucesso' });
     } catch (error) {
       console.error('Erro ao excluir motorista:', error);
-      res.status(500).json({ error: 'Erro interno ao excluir motorista', details: error.message });
+      return erroInterno(req, res, 'Erro interno ao excluir motorista.', error);
     }
   }
 }
